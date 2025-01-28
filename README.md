@@ -27,3 +27,5 @@ This library is inspired by
 - social graph, user profiles, followers
 
 - further api integration (lists, feeds, graph, labels, etc.)
+
+- refer to Bluesky guidelines related to API, bots, etc., bots should adhere to guidelines
