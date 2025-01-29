@@ -2,13 +2,23 @@ package botsky
 
 import (
 	"context"
-	"github.com/bluesky-social/indigo/xrpc"
+    "strings"
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 )
 
 const DefaultServer = "https://bsky.social"
+
+func GetEnvCredentials() (string, string) {
+	handle := os.Getenv("BOTSKY_HANDLE")
+	appkey := os.Getenv("BOTSKY_APPKEY")
+	return handle, appkey
+}
 
 type Client struct {
 	xrpcClient *xrpc.Client
@@ -31,8 +41,20 @@ func NewClient(ctx context.Context, server string, handle string, appkey string)
 	return client, nil
 }
 
-func GetEnvCredentials() (string, string) {
-	handle := os.Getenv("BOTSKY_HANDLE")
-	appkey := os.Getenv("BOTSKY_APPKEY")
-	return handle, appkey
+func (c *Client) CanGetPreferences(ctx context.Context) bool {
+    _, err := bsky.ActorGetPreferences(ctx, c.xrpcClient)
+    return err != nil
 }
+
+func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
+    if strings.HasPrefix(handle, "@") {
+        handle = handle[1:]
+    }
+    output, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
+    if err != nil {
+        return "", err 
+    }
+    return output.Did, nil
+
+}
+
