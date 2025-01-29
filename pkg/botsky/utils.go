@@ -3,12 +3,18 @@ package botsky
 import "net/http"
 import "io"
 import "unicode"
+import "time"
 import "fmt"
 import "os" 
 import "strings"
 import "errors"
 import "golang.org/x/net/html"
 import "regexp"
+
+
+func Sleep(seconds int) {
+    time.Sleep(time.Duration(seconds) * time.Second)
+}
 
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go

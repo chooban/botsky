@@ -20,9 +20,6 @@ import (
 
 // TODO: reply posts, quote posts, website card embeds? => maybe directly use website screenshotter, or how other sites implement that feature?
 
-
-
-
 type Facet_Type int
 
 const (
