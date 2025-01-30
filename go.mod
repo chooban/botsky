@@ -6,6 +6,7 @@ require (
 	github.com/bluesky-social/indigo v0.0.0-20250123072624-9e3b84fdbb20
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	golang.org/x/net v0.23.0
+	golang.org/x/term v0.18.0
 )
 
 require (

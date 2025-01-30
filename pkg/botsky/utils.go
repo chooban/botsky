@@ -1,19 +1,82 @@
 package botsky
 
-import "net/http"
-import "io"
-import "unicode"
-import "time"
-import "fmt"
-import "os" 
-import "strings"
-import "errors"
-import "golang.org/x/net/html"
-import "regexp"
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+	"syscall"
+	"time"
+	"unicode"
 
+	lexutil "github.com/bluesky-social/indigo/lex/util"
+	"golang.org/x/net/html"
+	"golang.org/x/term"
+)
 
 func Sleep(seconds int) {
-    time.Sleep(time.Duration(seconds) * time.Second)
+	time.Sleep(time.Duration(seconds) * time.Second)
+}
+
+func GetEnvCredentials() (string, string, error) {
+	handle := os.Getenv("BOTSKY_HANDLE")
+	appkey := os.Getenv("BOTSKY_APPKEY")
+	if handle == "" || appkey == "" {
+		return "", "", fmt.Errorf("BOTSKY_HANDLE or BOTSKY_APPKEY env variable not set")
+	}
+	return handle, appkey, nil
+}
+
+func GetCLICredentials() (string, string, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter account handle: ")
+	handle, err := reader.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+
+	fmt.Print("Enter appkey: ")
+	byteAppkey, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return "", "", err
+	}
+
+	appkey := string(byteAppkey)
+	return strings.TrimSpace(handle), strings.TrimSpace(appkey), nil
+}
+
+type CBORUnmarshaler interface {
+	UnmarshalCBOR(io.Reader) error
+}
+
+/*
+To call this function, provide it with a non-nil pointer to a variable of the intended result type.
+The record will then be decoded "into" the provided variable.
+E.g.
+```
+var postview bsky.FeedDefs_PostView = ...
+var post bsky.FeedPost
+
+	if err := botsky.DecodeRecordAsLexicon(postView.Record, &post); err != nil {
+	    return
+	}
+
+```
+*/
+func DecodeRecordAsLexicon[ResultPointerType CBORUnmarshaler](recordDecoder *lexutil.LexiconTypeDecoder, resultPointer ResultPointerType) error {
+	var buf bytes.Buffer
+
+	if err := recordDecoder.Val.MarshalCBOR(&buf); err != nil {
+		return err
+	}
+
+	return resultPointer.UnmarshalCBOR(&buf)
 }
 
 // This function has been modified from its original version.
@@ -61,99 +124,97 @@ func findSubstring(s, substr string) (int, int, error) {
 	return index, index + len(substr), nil
 }
 
-func findRegexMatches(text, pattern string) []struct{ 
-    Value string
-    Start int 
-    End int 
+func findRegexMatches(text, pattern string) []struct {
+	Value string
+	Start int
+	End   int
 } {
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringIndex(text, -1)
 
-	var results []struct{ 
-        Value string
-        Start int 
-        End int 
-    }
+	var results []struct {
+		Value string
+		Start int
+		End   int
+	}
 	for _, match := range matches {
-		results = append(results, struct{ 
-        Value string
-        Start int 
-        End int 
-    }{
-        Value: text[match[0]:match[1]],
-        Start: match[0],
-        End: match[1],
-    })
+		results = append(results, struct {
+			Value string
+			Start int
+			End   int
+		}{
+			Value: text[match[0]:match[1]],
+			Start: match[0],
+			End:   match[1],
+		})
 	}
 	return results
 }
 
-
-
 func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
-    // Initialize the result map
-    tags := make(map[string]string)
+	// Initialize the result map
+	tags := make(map[string]string)
 
-    // Make HTTP request
-    resp, err := http.Get(url)
-    if err != nil {
-        return nil, fmt.Errorf("failed to fetch URL: %v", err)
-    }
-    defer resp.Body.Close()
+	// Make HTTP request
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch URL: %v", err)
+	}
+	defer resp.Body.Close()
 
-    // Read the response body
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read response body: %v", err)
-    }
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
 
-    // Parse HTML
-    doc, err := html.Parse(strings.NewReader(string(body)))
-    if err != nil {
-        return nil, fmt.Errorf("failed to parse HTML: %v", err)
-    }
+	// Parse HTML
+	doc, err := html.Parse(strings.NewReader(string(body)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %v", err)
+	}
 
-    // Traverse the HTML tree
-    var traverse func(*html.Node)
-    traverse = func(n *html.Node) {
-        if n.Type == html.ElementNode && n.Data == "meta" {
-            var property, content string
-            
-            // Check node attributes
-            for _, attr := range n.Attr {
-                switch attr.Key {
-                case "property":
-                    if strings.HasPrefix(attr.Val, "og:") {
-                        property = strings.TrimPrefix(attr.Val, "og:")
-                    }
-                case "name":
-                    if strings.HasPrefix(attr.Val, "twitter:") {
-                        property = strings.TrimPrefix(attr.Val, "twitter:")
-                    }
-                case "content":
-                    content = attr.Val
-                }
-            }
+	// Traverse the HTML tree
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			var property, content string
 
-            // If we found both property and content, add to map
-            if property != "" && content != "" {
-                tags[property] = content
-            }
-        }
+			// Check node attributes
+			for _, attr := range n.Attr {
+				switch attr.Key {
+				case "property":
+					if strings.HasPrefix(attr.Val, "og:") {
+						property = strings.TrimPrefix(attr.Val, "og:")
+					}
+				case "name":
+					if strings.HasPrefix(attr.Val, "twitter:") {
+						property = strings.TrimPrefix(attr.Val, "twitter:")
+					}
+				case "content":
+					content = attr.Val
+				}
+			}
 
-        // Recursively traverse child nodes
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-            traverse(c)
-        }
-    }
+			// If we found both property and content, add to map
+			if property != "" && content != "" {
+				tags[property] = content
+			}
+		}
 
-    traverse(doc)
-    return tags, nil
+		// Recursively traverse child nodes
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+
+	traverse(doc)
+	return tags, nil
 }
 
 func stripHashtag(hashtag string) string {
-    s := strings.TrimSpace(hashtag)
-    s = strings.TrimPrefix(s, "#")
-    s = strings.TrimRightFunc(s, unicode.IsPunct)
-    return s
+	s := strings.TrimSpace(hashtag)
+	s = strings.TrimPrefix(s, "#")
+	s = strings.TrimRightFunc(s, unicode.IsPunct)
+	return s
 }

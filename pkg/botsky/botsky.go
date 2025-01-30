@@ -4,54 +4,21 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
-    "bufio"
-    "syscall"
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/xrpc"
-
-    "golang.org/x/term"
 )
 
 const DefaultServer = "https://bsky.social"
-
-func GetEnvCredentials() (string, string, error) {
-	handle := os.Getenv("BOTSKY_HANDLE")
-	appkey := os.Getenv("BOTSKY_APPKEY")
-    if handle == "" || appkey == "" {
-        return "", "", fmt.Errorf("BOTSKY_HANDLE or BOTSKY_APPKEY env variable not set")
-    }
-	return handle, appkey, nil
-}
-
-func GetCLICredentials() (string, string, error) {
-    reader := bufio.NewReader(os.Stdin)
-
-    fmt.Print("Enter account handle: ")
-    handle, err := reader.ReadString('\n')
-    if err != nil {
-        return "", "", err
-    }
-
-    fmt.Print("Enter appkey: ")
-    byteAppkey, err := term.ReadPassword(int(syscall.Stdin))
-    if err != nil {
-        return "", "", err
-    }
-
-    appkey := string(byteAppkey)
-    return strings.TrimSpace(handle), strings.TrimSpace(appkey), nil
-}
 
 type Client struct {
 	xrpcClient *xrpc.Client
 	handle     string
 	appkey     string
-	// make sure only one refresher runs at a time
+	// make sure only one auth refresher runs at a time
 	refreshMutex sync.Mutex
 }
 
@@ -68,20 +35,82 @@ func NewClient(ctx context.Context, server string, handle string, appkey string)
 	return client, nil
 }
 
-func (c *Client) CanGetPreferences(ctx context.Context) bool {
-    _, err := bsky.ActorGetPreferences(ctx, c.xrpcClient)
-    return err != nil
-}
 
 func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
-    if strings.HasPrefix(handle, "@") {
-        handle = handle[1:]
-    }
-    output, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
-    if err != nil {
-        return "", err 
-    }
-    return output.Did, nil
-
+	if strings.HasPrefix(handle, "@") {
+		handle = handle[1:]
+	}
+	output, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
+	if err != nil {
+		return "", err
+	}
+	return output.Did, nil
 }
 
+// get posts from bsky API/AppView ***********************************************************
+
+type RichPost struct {
+	bsky.FeedPost
+
+	AuthorDid   string // from *bsky.ActorDefs_ProfileViewBasic
+	Cid         string
+	Uri         string
+	IndexedAt   string
+	Labels      []*atproto.LabelDefs_Label
+	LikeCount   int64
+	QuoteCount  int64
+	ReplyCount  int64
+	RepostCount int64
+}
+
+func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int) ([]*bsky.FeedDefs_PostView, error) {
+	// get all post uris
+	postUris, err := c.RepoGetRecordUris(ctx, handleOrDid, "app.bsky.feed.post", limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// hydrate'em
+	postViews := make([]*bsky.FeedDefs_PostView, 0, len(postUris))
+	for i := 0; i < len(postUris); i += 25 {
+		j := i + 25
+		if j > len(postUris) {
+			j = len(postUris)
+		}
+		results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, postUris[i:j])
+		if err != nil {
+			return nil, err
+		}
+		postViews = append(postViews, results.Posts...)
+	}
+	return postViews, nil
+}
+
+func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
+	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	posts := make([]*RichPost, 0, len(postViews))
+	for _, postView := range postViews {
+		var feedPost bsky.FeedPost
+		if err := DecodeRecordAsLexicon(postView.Record, &feedPost); err != nil {
+			fmt.Println("failed to decode postView.Record as FeedPost:", err)
+		} else {
+			posts = append(posts, &RichPost{
+				FeedPost:    feedPost,
+				AuthorDid:   postView.Author.Did,
+				Cid:         postView.Cid,
+				Uri:         postView.Uri,
+				IndexedAt:   postView.IndexedAt,
+				Labels:      postView.Labels,
+				LikeCount:   *postView.LikeCount,
+				QuoteCount:  *postView.QuoteCount,
+				ReplyCount:  *postView.ReplyCount,
+				RepostCount: *postView.RepostCount,
+			})
+		}
+	}
+	return posts, nil
+}
