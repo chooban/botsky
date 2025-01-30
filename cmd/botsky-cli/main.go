@@ -42,9 +42,11 @@ func main() {
     }
 */
 
+    /*
     botsky.Sleep(1)
     _, _, err = client.Repost(ctx, "at://did:plc:6gqoupmca6cqjrcjeh7mb3ek/app.bsky.feed.post/3lgvsc277ss23")
     fmt.Println(err)
+*/
 
     /*
     cid, post, err := client.RepoGetPost(ctx, "at://did:plc:a3fiitdzkbaekw34lhfgjzlo/app.bsky.feed.post/3lgxl3lre5k2b")
@@ -56,12 +58,12 @@ func main() {
     fmt.Println(cid, post.Text)
 */
 
-/*
     if err := client.RepoDeleteAllPosts(ctx); err != nil {
         fmt.Println("error:", err)
         return
     }
     botsky.Sleep(1)
+/*
 */
 
 

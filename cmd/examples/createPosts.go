@@ -34,23 +34,25 @@ func main() {
     botsky.Sleep(2)
 
     mentionHandle := "@botsky-bot.bsky.social"
-    text := fmt.Sprintf("This is a post with #hashtags, mentioning myself %s. It includes an inline-link, as well as an embedded link :)", mentionHandle)
+    text := fmt.Sprintf("This is a post with #hashtags, mentioning myself %s. It includes an inline-link, as well as an embedded link. Note the additional tags and the post language :)", mentionHandle)
     mentions := []string{mentionHandle}
-    renderHashtags := true
     inlineLinks := []botsky.InlineLink{{ Text: "inline-link", Url: "https://xkcd.com"}}
-    // post languages can be set using []{"en", "de", ...}
-    // providing nil will default to "en" as post language
-    var languages []string = nil
 
     embeddedLink := "https://github.com/davhofer/botsky"
 
-    // a post including mention, tag, inline link, and embedded link
-    cid, uri, err := client.NewPost(ctx, text, renderHashtags, "", mentions, inlineLinks, languages, nil, embeddedLink, "")
+    // a post including mention, tags, inline link, language, and embedded link
+    pb := botsky.NewPostBuilder(text).
+        AddMentions(mentions).
+        AddInlineLinks(inlineLinks).
+        AddEmbedLink(embeddedLink).AddTags([]string{"tagged", "cool"}).AddLanguage("de")
+
+    cid, uri, err := client.Post(ctx, pb)
     if err != nil {
         fmt.Println("Error:", err)
     } else {
         fmt.Println("posted:", cid, uri)
     }
+
     botsky.Sleep(2)
 
 
@@ -61,7 +63,9 @@ func main() {
     images := []botsky.ImageSource{{Alt: "The github icon", Uri: "https://github.com/fluidicon.png"}}
 
     // a post wth tags and embedded images
-    cid, uri, err = client.NewPost(ctx, text, renderHashtags, "", nil, nil, nil, images, "", "")
+    pb = botsky.NewPostBuilder(text).AddImages(images)
+    cid, uri, err = client.Post(ctx, pb)
+
     if err != nil {
         fmt.Println("Error:", err)
     } else {
@@ -70,18 +74,30 @@ func main() {
     botsky.Sleep(2)
 
     // reply to the previous post
-    cid, uri, err = client.NewPost(ctx, "this is a reply", false, uri, nil, nil, nil, nil, "", "")
+    pb = botsky.NewPostBuilder("this is a reply").ReplyTo(uri)
+    cid, uri, err = client.Post(ctx, pb)
     if err != nil {
         fmt.Println("Error:", err)
     } else {
         fmt.Println("posted:", cid, uri)
     }
     botsky.Sleep(2)
+
     // quote the previous post
-    cid, uri, err = client.NewPost(ctx, "and now I'm quoting a post", false, "", nil, nil, nil, nil, "", uri)
+    pb = botsky.NewPostBuilder("this is a quote of another post").AddQuotedPost(uri)
+    cid, uri, err = client.Post(ctx, pb)
     if err != nil {
         fmt.Println("Error:", err)
     } else {
         fmt.Println("posted:", cid, uri)
     }
+
+    // repost
+    cid, uri, err = client.Repost(ctx, "at://did:plc:6gqoupmca6cqjrcjeh7mb3ek/app.bsky.feed.post/3lgvsc277ss23")
+    if err != nil {
+        fmt.Println("Error:", err)
+    } else {
+        fmt.Println("posted:", cid, uri)
+    }
+
 }

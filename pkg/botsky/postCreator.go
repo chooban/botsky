@@ -1,4 +1,4 @@
-// This file has been modified from its original version.
+// This file has been heavily modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/post.go
 // License: Apache 2.0
 
@@ -17,10 +17,6 @@ import (
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 )
 
-// TODO: refactor post builder and htis whole file 
-// user should be able to compose the post (add text, then add whatever else they want)
-// and in the end hit post.Post()
-
 // TODO: embed videos
 
 type Facet_Type int
@@ -31,12 +27,6 @@ const (
 	Facet_Tag
 )
 
-type PostBuilder struct {
-	Text  string
-	Facet []Facet
-	Embed Embed
-    ReplyReference ReplyReference
-}
 
 type InlineLink struct {
 	Text string
@@ -91,7 +81,7 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 
     cid, _, err := c.RepoGetPost(ctx, postUri)
     if err != nil {
-        return "", "", fmt.Errorf("Error getting post to repost:", err)
+        return "", "", fmt.Errorf("Error getting post to repost: %v", err)
     }
     ref := atproto.RepoStrongRef{
         Uri: postUri,
@@ -117,50 +107,106 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
     return response.Cid, response.Uri, nil
 }
 
-/*
-(check: where can we have one, where can we have many?)
-stuff we can have in our post:
-- text
-- facets:
-  - link => points into text
-  - mentions => points into text
-  - tags
+type PostBuilder struct {
+	Text  string
+	Facet []Facet
+    ReplyUri string
+    ReplyReference ReplyReference
+	Embed Embed
+    EmbedLink string 
+    EmbedImages []ImageSource
+    EmbedPostQuote string
+    AdditionalTags []string
+    HasEmbed bool
+    Languages []string
+    RenderHashtags bool
+    Mentions []string
+}
 
-- external link: embedded link with preview
-- images
-
-for mentions: let user give the handles of mentioned people, automatically resolve using com.atproto.identity.resolveHandle
-for links: let user provide substring and actual url?
-
-mentions => manual (give list of people to mention, referring to text)
-hashtags => detect automatically... if we just give list of tags, and one is a substring of the other, we can run into problems...
-*/
-func (c *Client) NewPost(ctx context.Context, text string, renderHashtags bool, replyToPostUri string, mentions []string, inlineLinks []InlineLink, languages []string, embeddedImages []ImageSource, embeddedLink string, embeddedQuotePostUri string) (string, string, error) {
-
-    embeddings := 0 
-	if embeddedImages != nil {
-        embeddings++
-    }
-    if embeddedLink != "" {
-        embeddings++
+func NewPostBuilder(text string) *PostBuilder {
+    pb := &PostBuilder{
+		Text:  text,
+        RenderHashtags: true,
 	}
-    if embeddedQuotePostUri != "" {
-        embeddings++ 
+
+    return pb
+}
+
+func (pb *PostBuilder) AddTags(tags []string) *PostBuilder {
+    pb.AdditionalTags = append(pb.AdditionalTags, tags...)
+    return pb
+}
+
+func (pb *PostBuilder) AddFacet(ftype Facet_Type, value string, text string) *PostBuilder {
+	pb.Facet = append(pb.Facet, Facet{
+		Ftype:   ftype,
+		Value:   value,
+		T_facet: text,
+	})
+    return pb
+}
+
+func (pb *PostBuilder) AddInlineLinks(links []InlineLink) *PostBuilder {
+    for _, link := range links {
+        pb.AddFacet(Facet_Link, link.Url, link.Text)
+    }
+    return pb
+}
+
+
+func (pb *PostBuilder) AddLanguage(language string) *PostBuilder {
+    pb.Languages = append(pb.Languages, language)
+    return pb
+}
+
+func (pb *PostBuilder) AddMentions(mentions []string) *PostBuilder {
+    pb.Mentions = append(pb.Mentions, mentions...)
+    return pb
+}
+
+func (pb *PostBuilder) ReplyTo(postUri string) *PostBuilder {
+    pb.ReplyUri = postUri
+    return pb
+}
+
+func (pb *PostBuilder) AddEmbedLink(link string) *PostBuilder {
+    pb.EmbedLink = link
+    return pb
+}
+
+func (pb *PostBuilder) AddImages(images []ImageSource) *PostBuilder {
+    pb.EmbedImages = append(pb.EmbedImages, images...)
+    return pb
+}
+
+func (pb *PostBuilder) AddQuotedPost(postUri string) *PostBuilder {
+    pb.EmbedPostQuote = postUri
+    return pb
+}
+
+
+func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, error) {
+    nEmbeds := 0 
+	if pb.EmbedImages != nil {
+        nEmbeds++
+    }
+    if pb.EmbedLink != "" {
+        nEmbeds++
+	}
+    if pb.EmbedPostQuote != "" {
+        nEmbeds++ 
     }
 	
-    if embeddings > 1 {
-        return "", "", fmt.Errorf("Can only include one type of Embed (images or embedded link) in posts.")
+    if nEmbeds > 1 {
+        return "", "", fmt.Errorf("Can only include one type of Embed (images, embedded link, quoted post) in posts.")
     }
 
-	if len(languages) == 0 {
-		languages = []string{"en"}
+	if len(pb.Languages) == 0 {
+		pb.Languages = []string{"en"}
 	}
 
-	// Set up PostBuilder
-	pb := NewPostBuilder(text)
-
-	if mentions != nil {
-		for _, handle := range mentions {
+	if pb.Mentions != nil {
+		for _, handle := range pb.Mentions {
 			var resolveHandle string
 			if strings.HasPrefix(handle, "@") {
 				resolveHandle = handle[1:]
@@ -171,21 +217,14 @@ func (c *Client) NewPost(ctx context.Context, text string, renderHashtags bool, 
 			if err != nil {
                 return "", "", fmt.Errorf("Unable to resolve handle: %v", err)
 			}
-			pb = pb.WithFacet(Facet_Mention, resolveOutput.Did, handle)
+			pb.AddFacet(Facet_Mention, resolveOutput.Did, handle)
 		}
 
 	}
 
-	if inlineLinks != nil {
-		for _, link := range inlineLinks {
-			pb = pb.WithFacet(Facet_Link, link.Url, link.Text)
-		}
-
-	}
-
-	if embeddedImages != nil {
+	if pb.EmbedImages != nil {
 		var parsedImages []Image
-		for _, img := range embeddedImages {
+		for _, img := range pb.EmbedImages {
 			parsedUrl, err := url.Parse(img.Uri)
 			if err != nil {
 				log.Println("Unable to parse image source uri", img.Uri)
@@ -198,17 +237,18 @@ func (c *Client) NewPost(ctx context.Context, text string, renderHashtags bool, 
 			if err != nil {
                 return "", "", fmt.Errorf("Error when uploading images: %v", err)
 			}
-			pb = pb.WithImages(blobs, parsedImages)
+            pb.Embed.Images = parsedImages
+            pb.Embed.UploadedImages = blobs
 		}
 	}
 
-	if embeddedLink != "" {
-		parsedLink, err := url.Parse(embeddedLink)
+	if pb.EmbedLink != "" {
+		parsedLink, err := url.Parse(pb.EmbedLink)
 		if err != nil {
             return "", "", fmt.Errorf("Error when parsing link: %v", err)
 		}
 
-		siteTags, err := fetchOpenGraphTwitterTags(embeddedLink)
+		siteTags, err := fetchOpenGraphTwitterTags(pb.EmbedLink)
 		if err != nil {
             return "", "", fmt.Errorf("Error when fetching og/twitter tags from link: %v", err)
 		}
@@ -237,116 +277,63 @@ func (c *Client) NewPost(ctx context.Context, text string, renderHashtags bool, 
 			}
 		}
 
-		pb = pb.WithExternalLink(title, *parsedLink, description, blob)
+        pb.Embed.Link.Title = title
+        pb.Embed.Link.Uri = *parsedLink
+        pb.Embed.Link.Description = description
+        pb.Embed.Link.Thumb = blob
 	}
 
-    if embeddedQuotePostUri != "" {
-        cid, _, err := c.RepoGetPost(ctx, embeddedQuotePostUri) 
+    if pb.EmbedPostQuote != "" {
+        cid, _, err := c.RepoGetPost(ctx, pb.EmbedPostQuote) 
         if err != nil {
             return "", "", fmt.Errorf("Error when getting quoted post: %v", err)
         }
-        pb = pb.WithQuotedPost(cid, embeddedQuotePostUri)
+        pb.Embed.Record.Cid = cid 
+        pb.Embed.Record.Uri = pb.EmbedPostQuote
     }
 
-
-    if replyToPostUri != "" {
-        cid, post, err := c.RepoGetPost(ctx, replyToPostUri) 
+    if pb.ReplyUri != "" {
+        cid, replyPost, err := c.RepoGetPost(ctx, pb.ReplyUri) 
         if err != nil {
             return "", "", fmt.Errorf("Error when getting reply post: %v", err)
         }
         
         var rootCid, rootUri string
-        if post.Reply != nil && *post.Reply != (bsky.FeedPost_ReplyRef{}) {
-            rootCid = post.Reply.Root.Cid
-            rootUri = post.Reply.Root.Uri
+        if replyPost.Reply != nil && *replyPost.Reply != (bsky.FeedPost_ReplyRef{}) {
+            rootCid = replyPost.Reply.Root.Cid
+            rootUri = replyPost.Reply.Root.Uri
         } else {
             rootCid = cid
-            rootUri = replyToPostUri
+            rootUri = pb.ReplyUri
         }
 
-        pb = pb.WithReply(replyToPostUri, cid, rootUri, rootCid)
+        pb.ReplyReference = ReplyReference{
+            Uri: pb.ReplyUri,
+            Cid: cid,
+            RootUri: rootUri,
+            RootCid: rootCid,
+        }
     }
 
-
-
 	// Build post
-	post, err := pb.Build(renderHashtags, languages)
+	post, err := pb.Build()
 	if err != nil {
         return "", "", fmt.Errorf("Error when building post: %v", err)
 	}
 
 	return c.RepoCreatePostRecord(ctx, post)
-}
 
-// Create a simple post with text
-func NewPostBuilder(text string) PostBuilder {
-	return PostBuilder{
-		Text:  text,
-		Facet: []Facet{},
-	}
-}
-
-// Create a Richtext Post with facets
-func (pb PostBuilder) WithFacet(ftype Facet_Type, value string, text string) PostBuilder {
-
-	pb.Facet = append(pb.Facet, Facet{
-		Ftype:   ftype,
-		Value:   value,
-		T_facet: text,
-	})
-
-	return pb
-}
-
-// Create a Post with external links
-func (pb PostBuilder) WithExternalLink(title string, link url.URL, description string, thumb lexutil.LexBlob) PostBuilder {
-
-	pb.Embed.Link.Title = title
-	pb.Embed.Link.Uri = link
-	pb.Embed.Link.Description = description
-	pb.Embed.Link.Thumb = thumb
-
-	return pb
-}
-
-// Create a Post with an embedded quoted post
-func (pb PostBuilder) WithQuotedPost(cid string, uri string) PostBuilder {
-
-    pb.Embed.Record.Cid = cid 
-    pb.Embed.Record.Uri = uri
-
-	return pb
-}
-
-// Create a Post with images
-func (pb PostBuilder) WithImages(blobs []lexutil.LexBlob, images []Image) PostBuilder {
-
-	pb.Embed.Images = images
-	pb.Embed.UploadedImages = blobs
-
-	return pb
-}
-
-func (pb PostBuilder) WithReply(uri, cid, rootUri, rootCid string) PostBuilder {
-
-    pb.ReplyReference = ReplyReference{
-        Uri: uri,
-        Cid: cid,
-        RootUri: rootUri,
-        RootCid: rootCid,
-    }
-
-	return pb
 }
 
 // Build the request
-func (pb PostBuilder) Build(renderHashtags bool, languages []string) (bsky.FeedPost, error) {
+func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 
-	post := bsky.FeedPost{Langs: languages}
+	post := bsky.FeedPost{Langs: pb.Languages}
 
 	post.Text = pb.Text
 	post.LexiconTypeID = "app.bsky.feed.post"
 	post.CreatedAt = time.Now().Format(time.RFC3339)
+    post.Tags = pb.AdditionalTags
 
 	// RichtextFacet Section
 	// https://docs.bsky.app/docs/advanced-guides/post-richtext
@@ -412,7 +399,7 @@ func (pb PostBuilder) Build(renderHashtags bool, languages []string) (bsky.FeedP
 	// We parse hashtags with regex instead of relying on substring matching
 	// The reason is that it is relatively common to have similar/overalpping hashtags, like
 	// #atproto and #atprotodev, which could lead to mistakes
-	if renderHashtags {
+	if pb.RenderHashtags {
 		hashtagRegex := `(?:^|\s)(#[^\d\s]\S*)`
 		matches := findRegexMatches(post.Text, hashtagRegex)
 		for _, m := range matches {
@@ -510,6 +497,7 @@ func (pb PostBuilder) Build(renderHashtags bool, languages []string) (bsky.FeedP
             },
         }
     }
+
 	return post, nil
 }
 
