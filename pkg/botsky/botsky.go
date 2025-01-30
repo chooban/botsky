@@ -2,22 +2,49 @@ package botsky
 
 import (
 	"context"
-    "strings"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
+    "bufio"
+    "syscall"
 
-	"github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/xrpc"
+
+    "golang.org/x/term"
 )
 
 const DefaultServer = "https://bsky.social"
 
-func GetEnvCredentials() (string, string) {
+func GetEnvCredentials() (string, string, error) {
 	handle := os.Getenv("BOTSKY_HANDLE")
 	appkey := os.Getenv("BOTSKY_APPKEY")
-	return handle, appkey
+    if handle == "" || appkey == "" {
+        return "", "", fmt.Errorf("BOTSKY_HANDLE or BOTSKY_APPKEY env variable not set")
+    }
+	return handle, appkey, nil
+}
+
+func GetCLICredentials() (string, string, error) {
+    reader := bufio.NewReader(os.Stdin)
+
+    fmt.Print("Enter account handle: ")
+    handle, err := reader.ReadString('\n')
+    if err != nil {
+        return "", "", err
+    }
+
+    fmt.Print("Enter appkey: ")
+    byteAppkey, err := term.ReadPassword(int(syscall.Stdin))
+    if err != nil {
+        return "", "", err
+    }
+
+    appkey := string(byteAppkey)
+    return strings.TrimSpace(handle), strings.TrimSpace(appkey), nil
 }
 
 type Client struct {
