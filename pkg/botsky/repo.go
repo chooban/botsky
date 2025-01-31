@@ -12,10 +12,9 @@ import (
 	util "github.com/bluesky-social/indigo/util"
 )
 
-// Enriched post struct, including both the repo's FeedPost as well as bluesky's PostView
-// Note: this fully relies on bsky api to be built
 
 // TODO: download image function from embed/repo, using SyncGetBlob
+// useful to extract images e.g. from posts
 
 // TODO: info about user/profile
 

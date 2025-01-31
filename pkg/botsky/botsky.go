@@ -49,6 +49,8 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 
 // get posts from bsky API/AppView ***********************************************************
 
+// Enriched post struct, including both the repo's FeedPost as well as bluesky's PostView
+// Note: this fully relies on bsky api to be built
 type RichPost struct {
 	bsky.FeedPost
 
@@ -63,6 +65,7 @@ type RichPost struct {
 	RepostCount int64
 }
 
+// Load bsky postViews from repo/user
 func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int) ([]*bsky.FeedDefs_PostView, error) {
 	// get all post uris
 	postUris, err := c.RepoGetRecordUris(ctx, handleOrDid, "app.bsky.feed.post", limit)
@@ -86,6 +89,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 	return postViews, nil
 }
 
+// Load enriched posts from repo/user
 func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
 	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)
 	if err != nil {
@@ -113,4 +117,36 @@ func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([
 		}
 	}
 	return posts, nil
+}
+
+func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) {
+	results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, []string{postUri})
+    if err != nil {
+        return RichPost{}, fmt.Errorf("Unable to get feedpost for given postUri: %v", err)
+    }
+    if len(results.Posts) == 0 {
+        return RichPost{}, fmt.Errorf("No post with the given uri found")
+    }
+    postView := results.Posts[0]
+
+    var feedPost bsky.FeedPost
+    err = DecodeRecordAsLexicon(postView.Record, &feedPost)
+    if err != nil {
+        return RichPost{}, fmt.Errorf("Unable to decode FeedPost from PostView.")
+    }
+
+    post := RichPost{
+        FeedPost: feedPost,        
+        AuthorDid:   postView.Author.Did,
+        Cid:         postView.Cid,
+        Uri:         postView.Uri,
+        IndexedAt:   postView.IndexedAt,
+        Labels:      postView.Labels,
+        LikeCount:   *postView.LikeCount,
+        QuoteCount:  *postView.QuoteCount,
+        ReplyCount:  *postView.ReplyCount,
+        RepostCount: *postView.RepostCount,
+    }
+
+    return post, nil
 }
