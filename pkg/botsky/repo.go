@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/api/bsky"
-	lexutil "github.com/bluesky-social/indigo/lex/util"
-	util "github.com/bluesky-social/indigo/util"
+	"github.com/davhofer/indigo/api/atproto"
+	"github.com/davhofer/indigo/api/bsky"
+	lexutil "github.com/davhofer/indigo/lex/util"
+	util "github.com/davhofer/indigo/util"
 )
 
 
@@ -22,7 +22,7 @@ import (
 // use curser to go through all pages
 
 func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]string, error) {
-	output, err := atproto.RepoDescribeRepo(ctx, c.xrpcClient, handleOrDid)
+	output, err := atproto.RepoDescribeRepo(ctx, c.XrpcClient, handleOrDid)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 	// iterate until we got all records
 	for {
 		// query repo for collection with updated cursor
-		output, err := atproto.RepoListRecords(ctx, c.xrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
+		output, err := atproto.RepoListRecords(ctx, c.XrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +86,7 @@ func (c *Client) RepoGetPost(ctx context.Context, postUri string) (string, bsky.
     if err != nil {
         return "", bsky.FeedPost{}, err
     }
-    output, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", "app.bsky.feed.post", parsedUri.Did, parsedUri.Rkey)
+    output, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.feed.post", parsedUri.Did, parsedUri.Rkey)
 
     var post bsky.FeedPost
     if err := DecodeRecordAsLexicon(output.Value, &post); err != nil {
@@ -100,7 +100,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
     if err != nil {
         return err 
     }
-	_, err = atproto.RepoDeleteRecord(ctx, c.xrpcClient, &atproto.RepoDeleteRecord_Input{
+	_, err = atproto.RepoDeleteRecord(ctx, c.XrpcClient, &atproto.RepoDeleteRecord_Input{
 		Collection: "app.bsky.feed.post",
 		Repo:       c.handle,
 		Rkey:       parsedUri.Rkey,
@@ -137,7 +137,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image Image) (*lexutil.Lex
 		log.Printf("Couldn't retrive the image: %v , %v", image, err)
 	}
 
-	resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
+	resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (c *Client) RepoUploadImages(ctx context.Context, images []Image) ([]lexuti
 			log.Printf("Couldn't retrive the image: %v , %v", img, err)
 		}
 
-		resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
+		resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
 		if err != nil {
 			return nil, err
 		}
@@ -188,12 +188,12 @@ func (c *Client) RepoCreatePostRecord(ctx context.Context, post bsky.FeedPost) (
 		// collection: The NSID of the record collection.
 		Collection: "app.bsky.feed.post",
 		// repo: The handle or DID of the repo (aka, current account).
-		Repo: c.xrpcClient.Auth.Did,
+		Repo: c.XrpcClient.Auth.Did,
 		// record: The record itself. Must contain a $type field.
 		Record: &lexutil.LexiconTypeDecoder{Val: &post},
 	}
 
-	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, post_input)
+	response, err := atproto.RepoCreateRecord(ctx, c.XrpcClient, post_input)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to post, %v", err)
 	}

@@ -8,13 +8,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+    "os/signal"
 	"regexp"
 	"strings"
 	"syscall"
 	"time"
 	"unicode"
 
-	lexutil "github.com/bluesky-social/indigo/lex/util"
+	lexutil "github.com/davhofer/indigo/lex/util"
 	"golang.org/x/net/html"
 	"golang.org/x/term"
 )
@@ -217,4 +218,15 @@ func stripHashtag(hashtag string) string {
 	s = strings.TrimPrefix(s, "#")
 	s = strings.TrimRightFunc(s, unicode.IsPunct)
 	return s
+}
+
+func WaitUntilCancel() {
+    // Create channel for shutdown signals
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+    fmt.Println("Waiting until cancelled (Ctrl+C)")
+
+    // Block until we receive a shutdown signal
+    <-sigChan
+    fmt.Println("\nCancelled")
 }

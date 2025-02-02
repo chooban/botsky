@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/api/bsky"
-	lexutil "github.com/bluesky-social/indigo/lex/util"
+	"github.com/davhofer/indigo/api/atproto"
+	"github.com/davhofer/indigo/api/bsky"
+	lexutil "github.com/davhofer/indigo/lex/util"
 )
 
 // TODO: embed videos
@@ -96,10 +96,10 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 	
 	post_input := &atproto.RepoCreateRecord_Input{
 		Collection: "app.bsky.feed.repost",
-		Repo: c.xrpcClient.Auth.Did,
+		Repo: c.XrpcClient.Auth.Did,
 		Record: &lexutil.LexiconTypeDecoder{Val: &post},
 	}
-	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, post_input)
+	response, err := atproto.RepoCreateRecord(ctx, c.XrpcClient, post_input)
 	if err != nil {
         return "", "", fmt.Errorf("unable to repost: %v", err)
 	}
@@ -213,7 +213,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			} else {
 				resolveHandle = handle
 			}
-			resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, resolveHandle)
+			resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, resolveHandle)
 			if err != nil {
                 return "", "", fmt.Errorf("Unable to resolve handle: %v", err)
 			}

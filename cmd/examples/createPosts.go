@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func main() {
+func createPosts() {
     defer fmt.Println("botsky is going to bed...")
 
     ctx := context.Background()

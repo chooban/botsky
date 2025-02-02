@@ -3,7 +3,6 @@ module botsky
 go 1.23.4
 
 require (
-	github.com/bluesky-social/indigo v0.0.0-20250123072624-9e3b84fdbb20
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	golang.org/x/net v0.23.0
 	golang.org/x/term v0.18.0
@@ -13,6 +12,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/davhofer/indigo v0.0.0-20250201122929-953fec9cd255 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect

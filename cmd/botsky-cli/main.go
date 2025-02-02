@@ -4,6 +4,8 @@ import (
 	"botsky/pkg/botsky"
 	"context"
 	"fmt"
+
+//	"github.com/davhofer/indigo/api/bsky"
 )
 
 // note: this is just for testing/debugging purposes rn
@@ -35,6 +37,39 @@ func main() {
 
     botsky.Sleep(1)
 
+    listener := botsky.NewPollingNotificationListener(ctx, client)
+
+    if err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler); err != nil {
+        fmt.Println(err)
+        return 
+    }
+
+    listener.Start()
+
+    botsky.WaitUntilCancel()
+
+
+    listener.Stop()
+
+    botsky.Sleep(50)
+
+
+
+    /*
+    output, err := bsky.NotificationListNotifications(ctx, client.XrpcClient, "", 50, false, []string{}, "")
+    fmt.Println(*output.SeenAt)
+    for _, notif := range output.Notifications {
+        if notif.ReasonSubject == nil {
+            continue
+        }
+        fmt.Println(*notif.ReasonSubject)
+        post, _ := client.GetPost(ctx, *notif.ReasonSubject)
+        fmt.Println(post)
+        fmt.Println()
+        fmt.Println()
+    }
+*/ 
+
     /*
     _, uri, err := client.NewPost(ctx, "A simple text post", false, "", nil, nil, nil, nil, "", "")
     if err != nil {
@@ -58,12 +93,13 @@ func main() {
     fmt.Println(cid, post.Text)
 */
 
+
+/*
     if err := client.RepoDeleteAllPosts(ctx); err != nil {
         fmt.Println("error:", err)
         return
     }
     botsky.Sleep(1)
-/*
 */
 
 

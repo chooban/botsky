@@ -6,8 +6,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/xrpc"
+	"github.com/davhofer/indigo/api/atproto"
+	"github.com/davhofer/indigo/xrpc"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -31,12 +31,12 @@ func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 }
 
 func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) {
-	c.xrpcClient.Auth = &xrpc.AuthInfo{
+	c.XrpcClient.SetAuthAsync(xrpc.AuthInfo{
 		AccessJwt:  accessJwt,
 		RefreshJwt: refreshJwt,
 		Handle:     handle,
 		Did:        did,
-	}
+	})
 
 	fmt.Println("- Update Auth -\nhandle:", handle, "\ndid:", did)
 
@@ -49,7 +49,7 @@ func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt st
 
 	fmt.Println("AccessJwt time remaining:", tRemaining)
 
-	timer := time.NewTimer(tRemaining - 30*time.Second)
+	timer := time.NewTimer(tRemaining - time.Minute)
 	// start refresher goroutine in background
 	go c.RefreshSession(ctx, timer)
 }
@@ -62,16 +62,16 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) error {
 
 	fmt.Println("id", id, "| timer fired, waiting for mutex")
 
-	c.refreshMutex.Lock()
-	defer c.refreshMutex.Unlock()
+	c.refreshProcessLock.Lock()
+	defer c.refreshProcessLock.Unlock()
 
 	fmt.Println("id", id, "| acquired mutex")
 	defer fmt.Println("id", id, "| [returning...]")
 
 	// check that RefreshJWT is still (for some time) valid
-	if tRemaining, _ := getJwtTimeRemaining(c.xrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
+	if tRemaining, _ := getJwtTimeRemaining(c.XrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
 		// refresh the session
-		session, err := atproto.ServerRefreshSession(ctx, c.xrpcClient)
+		session, err := atproto.ServerRefreshSession(ctx, c.XrpcClient)
 		if err != nil {
 			// TODO: how to handle this error?
 			err = fmt.Errorf("Session refresh failed: %v", err)
@@ -101,7 +101,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 		Identifier: c.handle,
 		Password:   c.appkey,
 	}
-	session, err := atproto.ServerCreateSession(ctx, c.xrpcClient, sessionCredentials)
+	session, err := atproto.ServerCreateSession(ctx, c.XrpcClient, sessionCredentials)
 	if err != nil {
 		// TODO: how to handle this error? if called as goroutine, it will be lost
 		err = fmt.Errorf("Session creation failed: %v", err)

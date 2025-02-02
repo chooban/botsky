@@ -7,25 +7,32 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/api/bsky"
-	"github.com/bluesky-social/indigo/xrpc"
+	"github.com/davhofer/indigo/api/atproto"
+	"github.com/davhofer/indigo/api/bsky"
+	"github.com/davhofer/indigo/xrpc"
 )
 
 const DefaultServer = "https://bsky.social"
 
+
+// TODO: update bot status with active/inactive when running/not running
+
+// TODO: need to wrap requests, in order to get the authLock, as well as for rate limiting
+
 type Client struct {
-	xrpcClient *xrpc.Client
+	XrpcClient *xrpc.Client
 	handle     string
 	appkey     string
 	// make sure only one auth refresher runs at a time
-	refreshMutex sync.Mutex
+	refreshProcessLock sync.Mutex
+    // read-write lock to ensure that concurrent processes can access the http auth information without problems
+    authLock sync.RWMutex
 }
 
 // Sets up a new client connecting to the given server
 func NewClient(ctx context.Context, server string, handle string, appkey string) (*Client, error) {
 	client := &Client{
-		xrpcClient: &xrpc.Client{
+		XrpcClient: &xrpc.Client{
 			Client: new(http.Client),
 			Host:   server,
 		},
@@ -40,7 +47,7 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 	if strings.HasPrefix(handle, "@") {
 		handle = handle[1:]
 	}
-	output, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
+	output, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, handle)
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +87,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 		if j > len(postUris) {
 			j = len(postUris)
 		}
-		results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, postUris[i:j])
+		results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, postUris[i:j])
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +127,7 @@ func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([
 }
 
 func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) {
-	results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, []string{postUri})
+	results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, []string{postUri})
     if err != nil {
         return RichPost{}, fmt.Errorf("Unable to get feedpost for given postUri: %v", err)
     }

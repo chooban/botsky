@@ -2,6 +2,8 @@
 
 A Bluesky API client in Go with useful features for developing automated apps and bots.
 
+---
+
 Provides easy-to-use interfaces for:
 
 - creating posts
@@ -12,13 +14,13 @@ Provides easy-to-use interfaces for:
 
 Includes auth management & auto-refresh and support for rate-limiting.
 
-**Note:** This library is under active development, not all features are complete yet.
+**Note:** This library is under active development, most features are still work in progress.
 
-Feel free to open issues to discuss requests regarding the design.
+Feel free to open issues to discuss requests regarding the design and features.
 
 ## Why yet another Bluesky API tool/client/bot?
 
-**tldr:** Support for Bluesky automation/bots in Go is not that great yet - existing libraries are either purely CLI or support only a small portion of the API and features available. And also, I wanted to do it.
+**tldr:** Support for Bluesky automation/bots in Go is not that great yet imo - existing libraries are either purely CLI or support only a small portion of the API and features available. Also, I wanted to do it :)
 
 While there are a bunch of tools and clients out there, my impression when starting this was that the Go ecosystem in particular was quite lacking in terms of tooling and support. I was particularly looking for some sort of Go SDK that allows writing bots or other automated apps, interacting with Bluesky, PDSs, etc. The official Go SDK for atproto, [indigo](https://github.com/bluesky-social/indigo), does not itself provide an API client (it contains an xrpc client, lexicons, and more tho).
 
@@ -124,6 +126,8 @@ decentralization/federation
 - trust, verification, cryptography: in general the server hosting the PDS is not trusted, should verify data returned by it
 
 - reliance on Bluesky's (the company) AppView... can we make it atproto-native? include smth like a trustBluesky flag?
+
+- docs: overview of core features/code snippets on top
 
 ## Acknowledgements
 
