@@ -1,18 +1,18 @@
 # Botsky
 
-A Bluesky API client in Go with useful features for developing automated apps and bots.
+A Bluesky API client in Go. Use Botsky to easily build Bluesky API integrations, automated apps, and bots.
 
 ---
 
 Provides easy-to-use interfaces for:
 
 - creating posts
-- event-/notification listeners to react to mentions, replies, etc. **(WIP)**
+- event-/notification listeners to react to mentions, replies, etc.
+- manipulating data on your PDS, read records from other PDSes
 - interacting with user profiles and social graph **(WIP)**
-- manipulate data on your PDS, read records from other PDSes **(WIP)**
 - interacting with feeds, labelers, and more **(WIP)**
 
-Includes auth management & auto-refresh and support for rate-limiting.
+Includes auth management & auto-refresh.
 
 **Note:** This library is under active development, most features are still work in progress.
 
@@ -32,37 +32,23 @@ And in any case, even if there is some overlap, this project helps me get famili
 
 ## Features
 
-- Session management, authentication, auto-refresh
-- Posts:
-  - get from pds/collection
-  - get by uri
-  - get rich posts & post views from bsky appview including like counts etc.
-  - create posts with links, mentions, tags, images
-  - reply to and quote posts
-  - repost
-  - delete own posts
+Detailed descriptions and API docs coming soon.
 
 ### Code examples
+
+For more examples and details, also check out the [examples here](https://github.com/davhofer/botsky/tree/main/cmd/examples).
 
 Initialization and auth:
 
 ```go
-    ctx := context.Background()
-
     // Get creds from command line
     handle, appkey, err := botsky.GetCLICredentials()
     // Or from env variables BOTSKY_HANDLE and BOTSKY_APPKEY
     handle, appkey, err = botsky.GetEnvCredentials()
-
-    // ...
-
+    // (error handling...)
     // Set up a client interacting with the default server at https://bsky.social
     client, err := botsky.NewClient(ctx, botsky.DefaultServer, handle, appkey)
-
-    // ...
-
-    // Try to authenticate. The bot will refresh the auth tokens automatically in
-    // the background while running
+    // (error handling...)
     err = client.Authenticate(ctx)
 ```
 
@@ -73,21 +59,45 @@ text := "post with an embedded image"
 images := []botsky.ImageSource{{Alt: "The github icon", Uri: "https://github.com/fluidicon.png"}}
 pb := botsky.NewPostBuilder(text).AddImages(images)
 cid, uri, err := client.Post(ctx, pb)
+```
 
-
-
+```go
 text := "post with #hashtags mentioning @botsky-bot.bsky.social, an inline-link, an embedded link w/ card, additional tags, and language set to german"
-mentions := []string{"@botsky-bot.bsky.social"}
-inlineLinks := []botsky.InlineLink{{ Text: "inline-link", Url: "https://xkcd.com"}}
-embeddedLink := "https://github.com/davhofer/botsky"
-tags := []string{"botsky", "is", "happy"}
 pb := botsky.NewPostBuilder(text).
-    AddMentions(mentions).
-    AddInlineLinks(inlineLinks).
-    AddEmbedLink(embeddedLink).
-    AddTags(tags).
+    AddMentions([]string{"@botsky-bot.bsky.social"}).
+    AddInlineLinks([]botsky.InlineLink{{ Text: "inline-link", Url: "https://xkcd.com"}}).
+    AddEmbedLink("https://github.com/davhofer/botsky").
+    AddTags([]string{"botsky", "is", "happy"}).
     AddLanguage("de")
 cid, uri, err = client.Post(ctx, pb)
+```
+
+Create NotificationListener and reply to mentions:
+
+```go
+listener := botsky.NewPollingNotificationListener(ctx, client)
+err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler)
+// (error handling...)
+listener.Start()
+botsky.WaitUntilCancel()
+listener.Stop()
+```
+
+The example handler function used to reply to mentions:
+
+```go
+func ExampleHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
+	// iterate over all notifications
+	for _, notif := range notifications {
+		// only consider mentions
+		if notif.Reason == "mention" {
+			// Uri is the mentioning post
+			pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
+			cid, uri, err := client.Post(ctx, pb)
+			fmt.Println("Posted:", cid, uri, err)
+		}
+	}
+}
 ```
 
 ## A note on federation/decentralization
@@ -99,35 +109,16 @@ decentralization/federation
 
 ## TODO
 
-- jetStream integration/listener interface?
-- get account notifications and react to certain events, maybe integrate with a ticker for continuous polling (but respect api rate limits)
-
-  - from what i gather the notifications.registerPush endpoint is not functional yet
-
-- get repo contents
-
-- error handling: whenever we return an error, also add a prefix where/why it happened
-- integrate jetstream, set up event listeners
-
-  - => could this be implemented via the API app.bsky.notification -> registerPush/listNotifications?
-
-  - listen for mentions
-  - listen for replies
-  - other listeners
-
-- builtin adjustable rate limiting
-
-- social graph, user profiles, followers
-
+- finish PDS/Repo API functionality
+- get user profile information, social graph interactions, following & followers, etc.
 - further api integration (lists, feeds, graph, labels, etc.)
+- code docs, detailed feature overview
 
+- builtin adjustable rate limiting? limits depending on bsky api, pds, ...
+- jetStream integration/listener interface?
 - refer to Bluesky guidelines related to API, bots, etc., bots should adhere to guidelines
-
-- trust, verification, cryptography: in general the server hosting the PDS is not trusted, should verify data returned by it
-
-- reliance on Bluesky's (the company) AppView... can we make it atproto-native? include smth like a trustBluesky flag?
-
-- docs: overview of core features/code snippets on top
+- trust, verification, cryptography: in general the server hosting the PDS is not trusted, should we verify data returned by it?
+- reliance on Bluesky's (the company) AppView...
 
 ## Acknowledgements
 
