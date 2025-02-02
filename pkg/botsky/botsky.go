@@ -10,6 +10,7 @@ import (
 	"github.com/davhofer/indigo/api/atproto"
 	"github.com/davhofer/indigo/api/bsky"
 	"github.com/davhofer/indigo/xrpc"
+    lexutil "github.com/davhofer/indigo/lex/util"
 )
 
 const DefaultServer = "https://bsky.social"
@@ -17,7 +18,7 @@ const DefaultServer = "https://bsky.social"
 
 // TODO: update bot status with active/inactive when running/not running
 
-// TODO: need to wrap requests, in order to get the authLock, as well as for rate limiting
+// TODO: need to wrap requests for rate limiting?
 
 type Client struct {
 	XrpcClient *xrpc.Client
@@ -54,7 +55,51 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 	return output.Did, nil
 }
 
+
+func (c *Client) UpdateProfileDescription(ctx context.Context, description string) error {
+    profileRecord, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
+    if err != nil {
+        return fmt.Errorf("UpdateProfileDescription error (RepoGetRecord): %v", err)
+    }
+    
+    var actorProfile bsky.ActorProfile
+    if err := DecodeRecordAsLexicon(profileRecord.Value, &actorProfile); err != nil {
+        return fmt.Errorf("UpdateProfileDescription error (DecodeRecordAsLexicon): %v", err)
+    } 
+    
+    newProfile := bsky.ActorProfile{
+        LexiconTypeID: "app.bsky.actor.profile",
+        Avatar: actorProfile.Avatar,
+        Banner: actorProfile.Banner,
+        CreatedAt: actorProfile.CreatedAt,
+        Description: &description,
+        DisplayName: actorProfile.DisplayName,
+        JoinedViaStarterPack: actorProfile.JoinedViaStarterPack,
+        Labels: actorProfile.Labels,
+        PinnedPost: actorProfile.PinnedPost,
+    }
+
+    input := atproto.RepoPutRecord_Input{
+        Collection: "app.bsky.actor.profile",
+        Record: &lexutil.LexiconTypeDecoder{
+            Val: &newProfile,
+        },
+        Repo: c.handle,
+        Rkey: "self",
+        SwapRecord: profileRecord.Cid,
+    }
+
+    output, err := atproto.RepoPutRecord(ctx, c.XrpcClient, &input)
+    if err != nil {
+        return fmt.Errorf("UpdateProfileDescription error (RepoPutRecord): %v", err)
+    }
+    logger.Println("Profile updated:", output.Cid, output.Uri)
+    return nil
+}
+
 // get posts from bsky API/AppView ***********************************************************
+
+// TODO: method to get post directly from repo?
 
 // Enriched post struct, including both the repo's FeedPost as well as bluesky's PostView
 // Note: this fully relies on bsky api to be built
@@ -73,6 +118,7 @@ type RichPost struct {
 }
 
 // Load bsky postViews from repo/user
+// (This is not related to the number of views on a post)
 func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int) ([]*bsky.FeedDefs_PostView, error) {
 	// get all post uris
 	postUris, err := c.RepoGetRecordUris(ctx, handleOrDid, "app.bsky.feed.post", limit)

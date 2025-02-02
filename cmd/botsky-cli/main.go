@@ -35,24 +35,14 @@ func main() {
     fmt.Println("Authentication successful")
 
 
-    botsky.Sleep(1)
+    description := `Botsky - Bluesky API client & bot framework written in Go
+https://github.com/davhofer/botsky
 
-    listener := botsky.NewPollingNotificationListener(ctx, client)
+by @davd.dev`
 
-    if err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler); err != nil {
+    if err := client.UpdateProfileDescription(ctx, description); err != nil {
         fmt.Println(err)
-        return 
     }
-
-    listener.Start()
-
-    botsky.WaitUntilCancel()
-
-
-    listener.Stop()
-
-    botsky.Sleep(50)
-
 
 
     /*
