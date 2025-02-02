@@ -78,33 +78,30 @@ func (l *PollingNotificationListener) Stop() {
 // is run as a goroutine
 func (l *PollingNotificationListener) listen() {
     ticker := time.NewTicker(l.PollingInterval)
-    fmt.Println("listener started")
-    defer fmt.Println("listener stopping...")
+    logger.Println("Listener started")
+    defer fmt.Println("Listener stopped")
     defer ticker.Stop()
 
     for {
         select {
         case <- l.stopSignal:
-            fmt.Println("listener: stop signal received!")
+            logger.Println()
             return
         case <- ticker.C:
             // check for new notifications 
-            fmt.Println("polling...")
             count, err := l.Client.NotifGetUnreadCount(l.ctx) 
             if err != nil {
-                // TODO: handle errors, pass to channel?
-                fmt.Println("listener error:", err)
+                logger.Println("Listener error (NotifGetUnreadCount):", err)
                 continue
             }
-            fmt.Println("listener: new notification count:", count)
             if count == 0 {
                 continue
             }
+            logger.Println("listener:", count, "new notifications")
             // if there are, distribute to handlers
             notifications, err := l.Client.NotifGetNotifications(l.ctx, count)
             if err != nil {
-                fmt.Println("listener error:", err)
-                // TODO: handle errors
+                logger.Println("Listener error (NotifGetNotifications):", err)
                 continue 
             }
 
@@ -113,17 +110,14 @@ func (l *PollingNotificationListener) listen() {
                 SeenAt: time.Now().UTC().Format(time.RFC3339),
             }
             if err := bsky.NotificationUpdateSeen(l.ctx, l.Client.XrpcClient, &updateSeenInput); err != nil {
-                fmt.Println("listener error:", err)
-                // TODO: handle errors
+                logger.Println("Listener error (NotificationUpdateSeen):", err)
                 continue 
             }
 
-            fmt.Println("listener: starting handlers")
             for id, handler := range l.Handlers {
                 // pass in the associated id with the context
                 go handler(context.WithValue(l.ctx, "id", id), l.Client, notifications)
             }
-
 
         }
     }
@@ -131,28 +125,10 @@ func (l *PollingNotificationListener) listen() {
 
 // example handler that replies to mentions
 func ExampleHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
-    defer fmt.Println("example handler done")
-    fmt.Println("example handler running")
     // iterate over all notifications
     for _, notif := range notifications {
-        fmt.Println(" - - - ")
-        fmt.Println("reason:", notif.Reason)
-        fmt.Println("isRead:", notif.IsRead)
-        fmt.Println("uri:", notif.Uri)
-        fmt.Println("reasonSubject:", notif.ReasonSubject)
-        fmt.Println("author did:", notif.Author.Did)
-        fmt.Println("author handle:", notif.Author.Handle)
-        fmt.Println()
         // only consider mentions 
         if notif.Reason == "mention" {
-            fmt.Println("handler: mention found!")
-
-            /*
-            if notif.ReasonSubject == nil {
-                fmt.Println("reason subject nil :(")
-                continue 
-            }
-            */
             // Uri (!) is the mentioning post
             pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
             cid, uri, err := client.Post(ctx, pb)

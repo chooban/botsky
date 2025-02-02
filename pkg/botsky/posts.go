@@ -7,7 +7,6 @@ package botsky
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -227,7 +226,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 		for _, img := range pb.EmbedImages {
 			parsedUrl, err := url.Parse(img.Uri)
 			if err != nil {
-				log.Println("Unable to parse image source uri", img.Uri)
+                return "", "", fmt.Errorf("Unable to parse image source uri: %s", img.Uri)
 			} else {
 				parsedImages = append(parsedImages, Image{Alt: img.Alt, Uri: *parsedUrl})
 			}
@@ -384,7 +383,7 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 
 		ByteStart, ByteEnd, err := findSubstring(post.Text, f.T_facet)
 		if err != nil {
-			return post, fmt.Errorf("unable to find the substring: %v , %v", f.T_facet, err)
+			return post, fmt.Errorf("Unable to find the substring: %v , %v", f.T_facet, err)
 		}
 
 		index := &bsky.RichtextFacet_ByteSlice{

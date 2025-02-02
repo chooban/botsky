@@ -14,11 +14,14 @@ import (
 	"syscall"
 	"time"
 	"unicode"
+    "log"
 
 	lexutil "github.com/davhofer/indigo/lex/util"
 	"golang.org/x/net/html"
 	"golang.org/x/term"
 )
+
+var logger = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
 
 func Sleep(seconds int) {
 	time.Sleep(time.Duration(seconds) * time.Second)
@@ -39,13 +42,13 @@ func GetCLICredentials() (string, string, error) {
 	fmt.Print("Enter account handle: ")
 	handle, err := reader.ReadString('\n')
 	if err != nil {
-		return "", "", err
+        return "", "", fmt.Errorf("GetCLICredentials error: %v", err)
 	}
 
 	fmt.Print("Enter appkey: ")
 	byteAppkey, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
-		return "", "", err
+        return "", "", fmt.Errorf("GetCLICredentials error: %v", err)
 	}
 
 	appkey := string(byteAppkey)
@@ -74,7 +77,7 @@ func DecodeRecordAsLexicon[ResultPointerType CBORUnmarshaler](recordDecoder *lex
 	var buf bytes.Buffer
 
 	if err := recordDecoder.Val.MarshalCBOR(&buf); err != nil {
-		return err
+        return fmt.Errorf("DecodeRecordAsLexicon error (MarshalCBOR): %v", err)
 	}
 
 	return resultPointer.UnmarshalCBOR(&buf)
@@ -88,19 +91,19 @@ func getImageAsBuffer(imageLocation string) ([]byte, error) {
 		// Fetch image from URL
 		response, err := http.Get(imageLocation)
 		if err != nil {
-			return nil, err
+            return nil, fmt.Errorf("getImageAsBuffer error (http.Get): %v", err)
 		}
 		defer response.Body.Close()
 
 		// Check response status
 		if response.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("failed to fetch image: %s", response.Status)
+            return nil, fmt.Errorf("getImageAsBuffer error: failed to fetch image: %s", response.Status)
 		}
 
 		// Read response body
 		imageData, err := io.ReadAll(response.Body)
 		if err != nil {
-			return nil, err
+            return nil, fmt.Errorf("getImageAsBuffer error (io.ReadAll): %v", err)
 		}
 
 		return imageData, nil
@@ -108,7 +111,7 @@ func getImageAsBuffer(imageLocation string) ([]byte, error) {
 		// Read image from local file
 		imageData, err := os.ReadFile(imageLocation)
 		if err != nil {
-			return nil, err
+            return nil, fmt.Errorf("getImageAsBuffer error (io.ReadFile): %v", err)
 		}
 		return imageData, nil
 	}
@@ -120,7 +123,7 @@ func getImageAsBuffer(imageLocation string) ([]byte, error) {
 func findSubstring(s, substr string) (int, int, error) {
 	index := strings.Index(s, substr)
 	if index == -1 {
-		return 0, 0, errors.New("substring not found")
+        return 0, 0, errors.New("findSubstring error: substring not found")
 	}
 	return index, index + len(substr), nil
 }
@@ -159,20 +162,20 @@ func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
 	// Make HTTP request
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch URL: %v", err)
+        return nil, fmt.Errorf("fetchOpenGraphTwitterTags error (http.Get): %v", err)
 	}
 	defer resp.Body.Close()
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
+        return nil, fmt.Errorf("fetchOpenGraphTwitterTags error (io.ReadAll): %v", err)
 	}
 
 	// Parse HTML
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse HTML: %v", err)
+        return nil, fmt.Errorf("fetchOpenGraphTwitterTags error (html.Parse): %v", err)
 	}
 
 	// Traverse the HTML tree

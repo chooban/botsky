@@ -24,7 +24,7 @@ import (
 func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]string, error) {
 	output, err := atproto.RepoDescribeRepo(ctx, c.XrpcClient, handleOrDid)
 	if err != nil {
-		return nil, err
+        return nil, fmt.Errorf("RepoGetCollections error (RepoDescribeRepo): %v", err)
 	}
 	return output.Collections, nil
 }
@@ -39,7 +39,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 		// query repo for collection with updated cursor
 		output, err := atproto.RepoListRecords(ctx, c.XrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
 		if err != nil {
-			return nil, err
+            return nil, fmt.Errorf("RepoGetRecords error (RepoListRecords): %v", err)
 		}
 
 		// stop if no records returned
@@ -72,7 +72,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, collection string, limit int) ([]string, error) {
 	records, err := c.RepoGetRecords(ctx, handleOrDid, collection, limit)
 	if err != nil {
-		return nil, err
+        return nil, fmt.Errorf("RepoGetRecordUris error (RepoGetRecords): %v", err)
 	}
 	uris := make([]string, len(records))
 	for i, r := range records {
@@ -84,13 +84,12 @@ func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, coll
 func (c *Client) RepoGetPost(ctx context.Context, postUri string) (string, bsky.FeedPost, error) {
     parsedUri, err := util.ParseAtUri(postUri)
     if err != nil {
-        return "", bsky.FeedPost{}, err
+        return "", bsky.FeedPost{}, fmt.Errorf("RepoGetPost error (ParseAtUri): %v", err)
     }
     output, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.feed.post", parsedUri.Did, parsedUri.Rkey)
-
     var post bsky.FeedPost
     if err := DecodeRecordAsLexicon(output.Value, &post); err != nil {
-        return "", bsky.FeedPost{}, err
+        return "", bsky.FeedPost{}, fmt.Errorf("RepoGetPost error (DecodeRecordAsLexicon): %v", err)
     }
     return *output.Cid, post, nil
 }
@@ -98,7 +97,7 @@ func (c *Client) RepoGetPost(ctx context.Context, postUri string) (string, bsky.
 func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
     parsedUri, err := util.ParseAtUri(postUri)
     if err != nil {
-        return err 
+        return fmt.Errorf("RepoDeletePost error (ParseAtUri): %v", err)
     }
 	_, err = atproto.RepoDeleteRecord(ctx, c.XrpcClient, &atproto.RepoDeleteRecord_Input{
 		Collection: "app.bsky.feed.post",
@@ -106,7 +105,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 		Rkey:       parsedUri.Rkey,
 	})
 	if err != nil {
-		return err
+        return fmt.Errorf("RepoDeletePost error (RepoDeleteRecord): %v", err)
 	}
 	return nil
 }
@@ -114,14 +113,14 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 	postUris, err := c.RepoGetRecordUris(ctx, c.handle, "app.bsky.feed.post", -1)
 	if err != nil {
-		return err
+        return fmt.Errorf("RepoDeleteAllPosts error (RepoGetRecordUris): %v", err)
 	}
-	fmt.Println("Deleting", len(postUris), "posts")
+	logger.Println("Deleting", len(postUris), "posts from repo")
 
 	for _, uri := range postUris {
 		err = c.RepoDeletePost(ctx, uri)
 		if err != nil {
-			return err
+            return fmt.Errorf("RepoDeleteAllPosts error (RepoDeletePost): %v", err)
 		}
 	}
 	return nil
@@ -139,7 +138,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image Image) (*lexutil.Lex
 
 	resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
 	if err != nil {
-		return nil, err
+        return nil, fmt.Errorf("RepoUploadImage error (RepoUploadBlob): %v", err)
 	}
 
 	blob := lexutil.LexBlob{
@@ -166,7 +165,7 @@ func (c *Client) RepoUploadImages(ctx context.Context, images []Image) ([]lexuti
 
 		resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("RepoUploadImages error (RepoUploadBlob): %v", err)
 		}
 
 		blobs = append(blobs, lexutil.LexBlob{

@@ -236,6 +236,6 @@ Copyright (c) 2024, gobot-bsky authors
 ## Attribution
 
 The following components are adapted from https://github.com/danrusei/gobot-bsky (Apache 2.0):
-- file botsky/pkg/botsky/postCreator.go - core skeleton and components, but has been adapted
+- file botsky/pkg/botsky/posts.go - core skeleton and components, but has been adapted
 - functions getImageAsBuffer and findSubstring in botsky/pkg/botsky/utils.go
 - functions RepoUploadImage, RepoUploadImages, and RepoCreatePostRecord in botsky/pkg/botsky/repo.go

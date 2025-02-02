@@ -3,7 +3,6 @@ package botsky
 import (
 	"context"
 	"fmt"
-	"math/rand/v2"
 	"time"
 
 	"github.com/davhofer/indigo/api/atproto"
@@ -13,24 +12,23 @@ import (
 
 func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 	// TODO: improve this?
-	token, _, _ := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{}) // new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	token, _, _ := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{}) 
 
 	// Extract claims
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		fmt.Println("Err: cannot parse claims")
-		return 0, fmt.Errorf("cannot parse claims from jwt")
+		return 0, fmt.Errorf("Cannot parse claims from JWT")
 	}
 	expTime, err := claims.GetExpirationTime()
 	if err != nil {
-		fmt.Println(err)
+        return 0, fmt.Errorf("Error when trying to get JWT expiration time")
 	}
 	// Calculate the time remaining
 	expTimeUnix := time.Unix(expTime.Unix(), 0)
 	return time.Until(expTimeUnix), nil
 }
 
-func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) {
+func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) error {
 	c.XrpcClient.SetAuthAsync(xrpc.AuthInfo{
 		AccessJwt:  accessJwt,
 		RefreshJwt: refreshJwt,
@@ -38,35 +36,25 @@ func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt st
 		Did:        did,
 	})
 
-	fmt.Println("- Update Auth -\nhandle:", handle, "\ndid:", did)
-
 	// Start timer for expiration of AccessJWT and session refresh
 	// parse time until expiration from accessJwt
 	tRemaining, err := getJwtTimeRemaining(accessJwt)
 	if err != nil {
-		// TODO: how to handle this error
+        return fmt.Errorf("UpdateAuth error: %v", err)
 	}
-
-	fmt.Println("AccessJwt time remaining:", tRemaining)
 
 	timer := time.NewTimer(tRemaining - time.Minute)
 	// start refresher goroutine in background
 	go c.RefreshSession(ctx, timer)
+    return nil
 }
 
-func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) error {
-	id := rand.IntN(1000000)
-	fmt.Println("id", id, "| spawned new RefreshSession routine")
+func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 	// wait until timer fires
 	<-timer.C
 
-	fmt.Println("id", id, "| timer fired, waiting for mutex")
-
 	c.refreshProcessLock.Lock()
 	defer c.refreshProcessLock.Unlock()
-
-	fmt.Println("id", id, "| acquired mutex")
-	defer fmt.Println("id", id, "| [returning...]")
 
 	// check that RefreshJWT is still (for some time) valid
 	if tRemaining, _ := getJwtTimeRemaining(c.XrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
@@ -74,23 +62,17 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) error {
 		session, err := atproto.ServerRefreshSession(ctx, c.XrpcClient)
 		if err != nil {
 			// TODO: how to handle this error?
-			err = fmt.Errorf("Session refresh failed: %v", err)
-			fmt.Println(err)
-			return err
+            logger.Println("RefreshSession error (ServerRefreshSession):", err)
 		}
-		c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did)
-		return nil
+        if err := c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did); err != nil {
+            logger.Println("RefreshSession error (UpdateAuth):", err)
+        }
 	}
 
 	// otherwise, perform full auth
-	err := c.Authenticate(ctx)
-
-	if err != nil {
-		// TODO: how to handle this error?
-		err = fmt.Errorf("Session authentication failed: %v", err)
-		fmt.Println(err)
-	}
-	return err
+	if err := c.Authenticate(ctx); err != nil {
+        logger.Println("RefreshSession error (Authenticate):", err)
+    }
 }
 
 // Authenticates the client with the given credentials
@@ -104,10 +86,10 @@ func (c *Client) Authenticate(ctx context.Context) error {
 	session, err := atproto.ServerCreateSession(ctx, c.XrpcClient, sessionCredentials)
 	if err != nil {
 		// TODO: how to handle this error? if called as goroutine, it will be lost
-		err = fmt.Errorf("Session creation failed: %v", err)
-		fmt.Println(err)
-		return err
+		return fmt.Errorf("Authenticate error (ServerCreateSession): %v", err)
 	}
-	c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did)
+    if err := c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did); err != nil {
+		return fmt.Errorf("Authenticate error (UpdateAuth): %v", err)
+    }
 	return nil
 }
