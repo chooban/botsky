@@ -6,7 +6,6 @@ import (
 	"fmt"
 )
 
-// note: this is just for testing/debugging purposes rn
 func replyToMentions() {
     ctx := context.Background()
 
