@@ -9,14 +9,11 @@ import (
 
 	"github.com/davhofer/indigo/api/atproto"
 	"github.com/davhofer/indigo/api/bsky"
+	lexutil "github.com/davhofer/indigo/lex/util"
 	"github.com/davhofer/indigo/xrpc"
-    lexutil "github.com/davhofer/indigo/lex/util"
 )
 
 const DefaultServer = "https://bsky.social"
-
-
-// TODO: update bot status with active/inactive when running/not running
 
 // TODO: need to wrap requests for rate limiting?
 
@@ -26,8 +23,8 @@ type Client struct {
 	appkey     string
 	// make sure only one auth refresher runs at a time
 	refreshProcessLock sync.Mutex
-    // read-write lock to ensure that concurrent processes can access the http auth information without problems
-    authLock sync.RWMutex
+	// read-write lock to ensure that concurrent processes can access the http auth information without problems
+	authLock sync.RWMutex
 }
 
 // Sets up a new client connecting to the given server
@@ -43,58 +40,56 @@ func NewClient(ctx context.Context, server string, handle string, appkey string)
 	return client, nil
 }
 
-
 func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
 	if strings.HasPrefix(handle, "@") {
 		handle = handle[1:]
 	}
 	output, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, handle)
 	if err != nil {
-        return "", fmt.Errorf("ResolveHandle error: %v", err)
+		return "", fmt.Errorf("ResolveHandle error: %v", err)
 	}
 	return output.Did, nil
 }
 
-
 func (c *Client) UpdateProfileDescription(ctx context.Context, description string) error {
-    profileRecord, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
-    if err != nil {
-        return fmt.Errorf("UpdateProfileDescription error (RepoGetRecord): %v", err)
-    }
-    
-    var actorProfile bsky.ActorProfile
-    if err := DecodeRecordAsLexicon(profileRecord.Value, &actorProfile); err != nil {
-        return fmt.Errorf("UpdateProfileDescription error (DecodeRecordAsLexicon): %v", err)
-    } 
-    
-    newProfile := bsky.ActorProfile{
-        LexiconTypeID: "app.bsky.actor.profile",
-        Avatar: actorProfile.Avatar,
-        Banner: actorProfile.Banner,
-        CreatedAt: actorProfile.CreatedAt,
-        Description: &description,
-        DisplayName: actorProfile.DisplayName,
-        JoinedViaStarterPack: actorProfile.JoinedViaStarterPack,
-        Labels: actorProfile.Labels,
-        PinnedPost: actorProfile.PinnedPost,
-    }
+	profileRecord, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
+	if err != nil {
+		return fmt.Errorf("UpdateProfileDescription error (RepoGetRecord): %v", err)
+	}
 
-    input := atproto.RepoPutRecord_Input{
-        Collection: "app.bsky.actor.profile",
-        Record: &lexutil.LexiconTypeDecoder{
-            Val: &newProfile,
-        },
-        Repo: c.handle,
-        Rkey: "self",
-        SwapRecord: profileRecord.Cid,
-    }
+	var actorProfile bsky.ActorProfile
+	if err := DecodeRecordAsLexicon(profileRecord.Value, &actorProfile); err != nil {
+		return fmt.Errorf("UpdateProfileDescription error (DecodeRecordAsLexicon): %v", err)
+	}
 
-    output, err := atproto.RepoPutRecord(ctx, c.XrpcClient, &input)
-    if err != nil {
-        return fmt.Errorf("UpdateProfileDescription error (RepoPutRecord): %v", err)
-    }
-    logger.Println("Profile updated:", output.Cid, output.Uri)
-    return nil
+	newProfile := bsky.ActorProfile{
+		LexiconTypeID:        "app.bsky.actor.profile",
+		Avatar:               actorProfile.Avatar,
+		Banner:               actorProfile.Banner,
+		CreatedAt:            actorProfile.CreatedAt,
+		Description:          &description,
+		DisplayName:          actorProfile.DisplayName,
+		JoinedViaStarterPack: actorProfile.JoinedViaStarterPack,
+		Labels:               actorProfile.Labels,
+		PinnedPost:           actorProfile.PinnedPost,
+	}
+
+	input := atproto.RepoPutRecord_Input{
+		Collection: "app.bsky.actor.profile",
+		Record: &lexutil.LexiconTypeDecoder{
+			Val: &newProfile,
+		},
+		Repo:       c.handle,
+		Rkey:       "self",
+		SwapRecord: profileRecord.Cid,
+	}
+
+	output, err := atproto.RepoPutRecord(ctx, c.XrpcClient, &input)
+	if err != nil {
+		return fmt.Errorf("UpdateProfileDescription error (RepoPutRecord): %v", err)
+	}
+	logger.Println("Profile updated:", output.Cid, output.Uri)
+	return nil
 }
 
 // get posts from bsky API/AppView ***********************************************************
@@ -110,7 +105,6 @@ type RichPost struct {
 	Cid         string
 	Uri         string
 	IndexedAt   string
-	Labels      []*atproto.LabelDefs_Label
 	LikeCount   int64
 	QuoteCount  int64
 	ReplyCount  int64
@@ -123,7 +117,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 	// get all post uris
 	postUris, err := c.RepoGetRecordUris(ctx, handleOrDid, "app.bsky.feed.post", limit)
 	if err != nil {
-        return nil, fmt.Errorf("GetPostViews error (RepoGetRecordUris): %v", err)
+		return nil, fmt.Errorf("GetPostViews error (RepoGetRecordUris): %v", err)
 	}
 
 	// hydrate'em
@@ -135,7 +129,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 		}
 		results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, postUris[i:j])
 		if err != nil {
-            return nil, fmt.Errorf("GetPostViews error (FeedGetPosts): %v", err)
+			return nil, fmt.Errorf("GetPostViews error (FeedGetPosts): %v", err)
 		}
 		postViews = append(postViews, results.Posts...)
 	}
@@ -146,60 +140,58 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
 	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)
 	if err != nil {
-        return nil, fmt.Errorf("GetPosts error (GetPostViews): %v", err)
+		return nil, fmt.Errorf("GetPosts error (GetPostViews): %v", err)
 	}
 
 	posts := make([]*RichPost, 0, len(postViews))
 	for _, postView := range postViews {
 		var feedPost bsky.FeedPost
 		if err := DecodeRecordAsLexicon(postView.Record, &feedPost); err != nil {
-            return nil, fmt.Errorf("GetPosts error (DecodeRecordAsLexicon): %v", err)
-		} 
-        posts = append(posts, &RichPost{
-            FeedPost:    feedPost,
-            AuthorDid:   postView.Author.Did,
-            Cid:         postView.Cid,
-            Uri:         postView.Uri,
-            IndexedAt:   postView.IndexedAt,
-            Labels:      postView.Labels,
-            LikeCount:   *postView.LikeCount,
-            QuoteCount:  *postView.QuoteCount,
-            ReplyCount:  *postView.ReplyCount,
-            RepostCount: *postView.RepostCount,
-        })
-		
+			return nil, fmt.Errorf("GetPosts error (DecodeRecordAsLexicon): %v", err)
+		}
+		posts = append(posts, &RichPost{
+			FeedPost:    feedPost,
+			AuthorDid:   postView.Author.Did,
+			Cid:         postView.Cid,
+			Uri:         postView.Uri,
+			IndexedAt:   postView.IndexedAt,
+			LikeCount:   *postView.LikeCount,
+			QuoteCount:  *postView.QuoteCount,
+			ReplyCount:  *postView.ReplyCount,
+			RepostCount: *postView.RepostCount,
+		})
+
 	}
 	return posts, nil
 }
 
 func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) {
 	results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, []string{postUri})
-    if err != nil {
-        return RichPost{}, fmt.Errorf("GetPost error (FeedGetPosts): %v", err)
-    }
-    if len(results.Posts) == 0 {
-        return RichPost{}, fmt.Errorf("GetPost error: No post with the given uri found")
-    }
-    postView := results.Posts[0]
+	if err != nil {
+		return RichPost{}, fmt.Errorf("GetPost error (FeedGetPosts): %v", err)
+	}
+	if len(results.Posts) == 0 {
+		return RichPost{}, fmt.Errorf("GetPost error: No post with the given uri found")
+	}
+	postView := results.Posts[0]
 
-    var feedPost bsky.FeedPost
-    err = DecodeRecordAsLexicon(postView.Record, &feedPost)
-    if err != nil {
-        return RichPost{}, fmt.Errorf("GetPost error (DecodeRecordAsLexicon): %v", err)
-    }
+	var feedPost bsky.FeedPost
+	err = DecodeRecordAsLexicon(postView.Record, &feedPost)
+	if err != nil {
+		return RichPost{}, fmt.Errorf("GetPost error (DecodeRecordAsLexicon): %v", err)
+	}
 
-    post := RichPost{
-        FeedPost: feedPost,        
-        AuthorDid:   postView.Author.Did,
-        Cid:         postView.Cid,
-        Uri:         postView.Uri,
-        IndexedAt:   postView.IndexedAt,
-        Labels:      postView.Labels,
-        LikeCount:   *postView.LikeCount,
-        QuoteCount:  *postView.QuoteCount,
-        ReplyCount:  *postView.ReplyCount,
-        RepostCount: *postView.RepostCount,
-    }
+	post := RichPost{
+		FeedPost:    feedPost,
+		AuthorDid:   postView.Author.Did,
+		Cid:         postView.Cid,
+		Uri:         postView.Uri,
+		IndexedAt:   postView.IndexedAt,
+		LikeCount:   *postView.LikeCount,
+		QuoteCount:  *postView.QuoteCount,
+		ReplyCount:  *postView.ReplyCount,
+		RepostCount: *postView.RepostCount,
+	}
 
-    return post, nil
+	return post, nil
 }

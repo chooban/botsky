@@ -7,45 +7,45 @@ import (
 )
 
 func replyToMentions() {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    defer fmt.Println("botsky is going to bed...")
+	defer fmt.Println("botsky is going to bed...")
 
-    handle, appkey, err := botsky.GetEnvCredentials()
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
+	handle, appkey, err := botsky.GetEnvCredentials()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    client, err := botsky.NewClient(ctx, botsky.DefaultServer, handle, appkey)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
+	client, err := botsky.NewClient(ctx, botsky.DefaultServer, handle, appkey)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    err = client.Authenticate(ctx)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
+	err = client.Authenticate(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    fmt.Println("Authentication successful")
+	fmt.Println("Authentication successful")
 
-    botsky.Sleep(1)
+	botsky.Sleep(1)
 
-    listener := botsky.NewPollingNotificationListener(ctx, client)
+	listener := botsky.NewPollingNotificationListener(ctx, client)
 
-    if err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler); err != nil {
-        fmt.Println(err)
-        return 
-    }
+	if err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler); err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    listener.Start()
+	listener.Start()
 
-    botsky.WaitUntilCancel()
+	botsky.WaitUntilCancel()
 
-    listener.Stop()
+	listener.Stop()
 
-    botsky.Sleep(3)
+	botsky.Sleep(3)
 
 }

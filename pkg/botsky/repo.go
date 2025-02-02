@@ -12,7 +12,6 @@ import (
 	util "github.com/davhofer/indigo/util"
 )
 
-
 // TODO: download image function from embed/repo, using SyncGetBlob
 // useful to extract images e.g. from posts
 
@@ -24,7 +23,7 @@ import (
 func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]string, error) {
 	output, err := atproto.RepoDescribeRepo(ctx, c.XrpcClient, handleOrDid)
 	if err != nil {
-        return nil, fmt.Errorf("RepoGetCollections error (RepoDescribeRepo): %v", err)
+		return nil, fmt.Errorf("RepoGetCollections error (RepoDescribeRepo): %v", err)
 	}
 	return output.Collections, nil
 }
@@ -39,7 +38,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 		// query repo for collection with updated cursor
 		output, err := atproto.RepoListRecords(ctx, c.XrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
 		if err != nil {
-            return nil, fmt.Errorf("RepoGetRecords error (RepoListRecords): %v", err)
+			return nil, fmt.Errorf("RepoGetRecords error (RepoListRecords): %v", err)
 		}
 
 		// stop if no records returned
@@ -72,7 +71,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, collection string, limit int) ([]string, error) {
 	records, err := c.RepoGetRecords(ctx, handleOrDid, collection, limit)
 	if err != nil {
-        return nil, fmt.Errorf("RepoGetRecordUris error (RepoGetRecords): %v", err)
+		return nil, fmt.Errorf("RepoGetRecordUris error (RepoGetRecords): %v", err)
 	}
 	uris := make([]string, len(records))
 	for i, r := range records {
@@ -81,31 +80,52 @@ func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, coll
 	return uris, nil
 }
 
-func (c *Client) RepoGetPost(ctx context.Context, postUri string) (string, bsky.FeedPost, error) {
-    parsedUri, err := util.ParseAtUri(postUri)
-    if err != nil {
-        return "", bsky.FeedPost{}, fmt.Errorf("RepoGetPost error (ParseAtUri): %v", err)
-    }
-    output, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.feed.post", parsedUri.Did, parsedUri.Rkey)
-    var post bsky.FeedPost
-    if err := DecodeRecordAsLexicon(output.Value, &post); err != nil {
-        return "", bsky.FeedPost{}, fmt.Errorf("RepoGetPost error (DecodeRecordAsLexicon): %v", err)
-    }
-    return *output.Cid, post, nil
+// Get the record at the specified uri and decode as the given result type (type of *resultPointer).
+// Result is stored in the object referenced by resultPointer.
+//
+// E.g. var post bsky.FeedPost;
+// RepoGetRecordAsType(ctx, postUri, &feedPost)
+func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resultPointer CBORUnmarshaler) error {
+	parsedUri, err := util.ParseAtUri(recordUri)
+	if err != nil {
+		return fmt.Errorf("RepoGetCidOfRecord error (ParseAtUri): %v", err)
+	}
+	record, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
+	if err != nil {
+		return fmt.Errorf("RepoGetRecordAsType error (RepoGetRecord): %v", err)
+	}
+	return DecodeRecordAsLexicon(record.Value, resultPointer)
+
+}
+
+func (c *Client) RepoGetPostAndCid(ctx context.Context, postUri string) (bsky.FeedPost, string, error) {
+	var post bsky.FeedPost
+	parsedUri, err := util.ParseAtUri(postUri)
+	if err != nil {
+		return post, "", fmt.Errorf("RepoGetPostAndCid error (ParseAtUri): %v", err)
+	}
+	record, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
+	if err != nil {
+		return post, "", fmt.Errorf("RepoGetPostAndCid error (RepoGetRecord): %v", err)
+	}
+	if err := DecodeRecordAsLexicon(record.Value, &post); err != nil {
+		return post, "", fmt.Errorf("RepoGetPostAndCid error (DecodeRecordAsLexicon): %v", err)
+	}
+	return post, *record.Cid, nil
 }
 
 func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
-    parsedUri, err := util.ParseAtUri(postUri)
-    if err != nil {
-        return fmt.Errorf("RepoDeletePost error (ParseAtUri): %v", err)
-    }
+	parsedUri, err := util.ParseAtUri(postUri)
+	if err != nil {
+		return fmt.Errorf("RepoDeletePost error (ParseAtUri): %v", err)
+	}
 	_, err = atproto.RepoDeleteRecord(ctx, c.XrpcClient, &atproto.RepoDeleteRecord_Input{
 		Collection: "app.bsky.feed.post",
 		Repo:       c.handle,
 		Rkey:       parsedUri.Rkey,
 	})
 	if err != nil {
-        return fmt.Errorf("RepoDeletePost error (RepoDeleteRecord): %v", err)
+		return fmt.Errorf("RepoDeletePost error (RepoDeleteRecord): %v", err)
 	}
 	return nil
 }
@@ -113,14 +133,14 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 	postUris, err := c.RepoGetRecordUris(ctx, c.handle, "app.bsky.feed.post", -1)
 	if err != nil {
-        return fmt.Errorf("RepoDeleteAllPosts error (RepoGetRecordUris): %v", err)
+		return fmt.Errorf("RepoDeleteAllPosts error (RepoGetRecordUris): %v", err)
 	}
 	logger.Println("Deleting", len(postUris), "posts from repo")
 
 	for _, uri := range postUris {
 		err = c.RepoDeletePost(ctx, uri)
 		if err != nil {
-            return fmt.Errorf("RepoDeleteAllPosts error (RepoDeletePost): %v", err)
+			return fmt.Errorf("RepoDeleteAllPosts error (RepoDeletePost): %v", err)
 		}
 	}
 	return nil
@@ -129,7 +149,7 @@ func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImage(ctx context.Context, image Image) (*lexutil.LexBlob, error) {
+func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (*lexutil.LexBlob, error) {
 
 	getImage, err := getImageAsBuffer(image.Uri.String())
 	if err != nil {
@@ -138,7 +158,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image Image) (*lexutil.Lex
 
 	resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
 	if err != nil {
-        return nil, fmt.Errorf("RepoUploadImage error (RepoUploadBlob): %v", err)
+		return nil, fmt.Errorf("RepoUploadImage error (RepoUploadBlob): %v", err)
 	}
 
 	blob := lexutil.LexBlob{
@@ -153,7 +173,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image Image) (*lexutil.Lex
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImages(ctx context.Context, images []Image) ([]lexutil.LexBlob, error) {
+func (c *Client) RepoUploadImages(ctx context.Context, images []ImageSourceParsed) ([]lexutil.LexBlob, error) {
 
 	blobs := make([]lexutil.LexBlob, 0, len(images))
 

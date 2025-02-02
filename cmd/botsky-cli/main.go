@@ -34,7 +34,18 @@ func main() {
 
     fmt.Println("Authentication successful")
 
+    posts, err := client.GetPosts(ctx, "davd.dev", 10)
+    if err != nil {
+        fmt.Println(err)
+        return 
+    }
+    for _, p := range posts {
+        fmt.Println("Post:", p.Text)
+        fmt.Println("Likes:", p.LikeCount)
+        fmt.Println("Replies:", p.ReplyCount)
+    }
 
+    /*
     description := `Botsky - Bluesky API client & bot framework written in Go
 https://github.com/davhofer/botsky
 
@@ -43,6 +54,7 @@ by @davd.dev`
     if err := client.UpdateProfileDescription(ctx, description); err != nil {
         fmt.Println(err)
     }
+    */
 
 
     /*

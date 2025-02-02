@@ -26,7 +26,6 @@ const (
 	Facet_Tag
 )
 
-
 type InlineLink struct {
 	Text string
 	Url  string
@@ -39,25 +38,23 @@ type Facet struct {
 }
 
 type RecordRef struct {
-    Cid string 
-    Uri string
+	Cid string
+	Uri string
 }
-
 
 type Embed struct {
 	Link           Link
-	Images         []Image
+	Images         []ImageSourceParsed
 	UploadedImages []lexutil.LexBlob
-    Record         RecordRef
+	Record         RecordRef
 }
 
 type ReplyReference struct {
-    Uri string 
-    Cid string 
-    RootUri string 
-    RootCid string
+	Uri     string
+	Cid     string
+	RootUri string
+	RootCid string
 }
-
 
 type Link struct {
 	Title       string
@@ -70,70 +67,69 @@ type ImageSource struct {
 	Alt string
 	Uri string
 }
-type Image struct {
+type ImageSourceParsed struct {
 	Alt string
 	Uri url.URL
 }
 
-
 func (c *Client) Repost(ctx context.Context, postUri string) (string, string, error) {
 
-    cid, _, err := c.RepoGetPost(ctx, postUri)
-    if err != nil {
-        return "", "", fmt.Errorf("Error getting post to repost: %v", err)
-    }
-    ref := atproto.RepoStrongRef{
-        Uri: postUri,
-        Cid: cid,
-    }
+	_, cid, err := c.RepoGetPostAndCid(ctx, postUri)
+	if err != nil {
+		return "", "", fmt.Errorf("Error getting post to repost: %v", err)
+	}
+	ref := atproto.RepoStrongRef{
+		Uri: postUri,
+		Cid: cid,
+	}
 
-    post := bsky.FeedRepost{
-        LexiconTypeID: "app.bsky.feed.repost", 
-        CreatedAt: time.Now().Format(time.RFC3339),
-        Subject: &ref,
-    }
-	
+	post := bsky.FeedRepost{
+		LexiconTypeID: "app.bsky.feed.repost",
+		CreatedAt:     time.Now().Format(time.RFC3339),
+		Subject:       &ref,
+	}
+
 	post_input := &atproto.RepoCreateRecord_Input{
 		Collection: "app.bsky.feed.repost",
-		Repo: c.XrpcClient.Auth.Did,
-		Record: &lexutil.LexiconTypeDecoder{Val: &post},
+		Repo:       c.XrpcClient.Auth.Did,
+		Record:     &lexutil.LexiconTypeDecoder{Val: &post},
 	}
 	response, err := atproto.RepoCreateRecord(ctx, c.XrpcClient, post_input)
 	if err != nil {
-        return "", "", fmt.Errorf("unable to repost: %v", err)
+		return "", "", fmt.Errorf("unable to repost: %v", err)
 	}
 
-    return response.Cid, response.Uri, nil
+	return response.Cid, response.Uri, nil
 }
 
 type PostBuilder struct {
-	Text  string
-	Facet []Facet
-    ReplyUri string
-    ReplyReference ReplyReference
-	Embed Embed
-    EmbedLink string 
-    EmbedImages []ImageSource
-    EmbedPostQuote string
-    AdditionalTags []string
-    HasEmbed bool
-    Languages []string
-    RenderHashtags bool
-    Mentions []string
+	Text           string
+	Facet          []Facet
+	ReplyUri       string
+	ReplyReference ReplyReference
+	Embed          Embed
+	EmbedLink      string
+	EmbedImages    []ImageSource
+	EmbedPostQuote string
+	AdditionalTags []string
+	HasEmbed       bool
+	Languages      []string
+	RenderHashtags bool
+	Mentions       []string
 }
 
 func NewPostBuilder(text string) *PostBuilder {
-    pb := &PostBuilder{
-		Text:  text,
-        RenderHashtags: true,
+	pb := &PostBuilder{
+		Text:           text,
+		RenderHashtags: true,
 	}
 
-    return pb
+	return pb
 }
 
 func (pb *PostBuilder) AddTags(tags []string) *PostBuilder {
-    pb.AdditionalTags = append(pb.AdditionalTags, tags...)
-    return pb
+	pb.AdditionalTags = append(pb.AdditionalTags, tags...)
+	return pb
 }
 
 func (pb *PostBuilder) AddFacet(ftype Facet_Type, value string, text string) *PostBuilder {
@@ -142,63 +138,61 @@ func (pb *PostBuilder) AddFacet(ftype Facet_Type, value string, text string) *Po
 		Value:   value,
 		T_facet: text,
 	})
-    return pb
+	return pb
 }
 
 func (pb *PostBuilder) AddInlineLinks(links []InlineLink) *PostBuilder {
-    for _, link := range links {
-        pb.AddFacet(Facet_Link, link.Url, link.Text)
-    }
-    return pb
+	for _, link := range links {
+		pb.AddFacet(Facet_Link, link.Url, link.Text)
+	}
+	return pb
 }
 
-
 func (pb *PostBuilder) AddLanguage(language string) *PostBuilder {
-    pb.Languages = append(pb.Languages, language)
-    return pb
+	pb.Languages = append(pb.Languages, language)
+	return pb
 }
 
 func (pb *PostBuilder) AddMentions(mentions []string) *PostBuilder {
-    pb.Mentions = append(pb.Mentions, mentions...)
-    return pb
+	pb.Mentions = append(pb.Mentions, mentions...)
+	return pb
 }
 
 func (pb *PostBuilder) ReplyTo(postUri string) *PostBuilder {
-    pb.ReplyUri = postUri
-    return pb
+	pb.ReplyUri = postUri
+	return pb
 }
 
 func (pb *PostBuilder) AddEmbedLink(link string) *PostBuilder {
-    pb.EmbedLink = link
-    return pb
+	pb.EmbedLink = link
+	return pb
 }
 
 func (pb *PostBuilder) AddImages(images []ImageSource) *PostBuilder {
-    pb.EmbedImages = append(pb.EmbedImages, images...)
-    return pb
+	pb.EmbedImages = append(pb.EmbedImages, images...)
+	return pb
 }
 
 func (pb *PostBuilder) AddQuotedPost(postUri string) *PostBuilder {
-    pb.EmbedPostQuote = postUri
-    return pb
+	pb.EmbedPostQuote = postUri
+	return pb
 }
 
-
 func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, error) {
-    nEmbeds := 0 
+	nEmbeds := 0
 	if pb.EmbedImages != nil {
-        nEmbeds++
-    }
-    if pb.EmbedLink != "" {
-        nEmbeds++
+		nEmbeds++
 	}
-    if pb.EmbedPostQuote != "" {
-        nEmbeds++ 
-    }
-	
-    if nEmbeds > 1 {
-        return "", "", fmt.Errorf("Can only include one type of Embed (images, embedded link, quoted post) in posts.")
-    }
+	if pb.EmbedLink != "" {
+		nEmbeds++
+	}
+	if pb.EmbedPostQuote != "" {
+		nEmbeds++
+	}
+
+	if nEmbeds > 1 {
+		return "", "", fmt.Errorf("Can only include one type of Embed (images, embedded link, quoted post) in posts.")
+	}
 
 	if len(pb.Languages) == 0 {
 		pb.Languages = []string{"en"}
@@ -214,7 +208,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			}
 			resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, resolveHandle)
 			if err != nil {
-                return "", "", fmt.Errorf("Unable to resolve handle: %v", err)
+				return "", "", fmt.Errorf("Unable to resolve handle: %v", err)
 			}
 			pb.AddFacet(Facet_Mention, resolveOutput.Did, handle)
 		}
@@ -222,34 +216,34 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 	}
 
 	if pb.EmbedImages != nil {
-		var parsedImages []Image
+		var parsedImages []ImageSourceParsed
 		for _, img := range pb.EmbedImages {
 			parsedUrl, err := url.Parse(img.Uri)
 			if err != nil {
-                return "", "", fmt.Errorf("Unable to parse image source uri: %s", img.Uri)
+				return "", "", fmt.Errorf("Unable to parse image source uri: %s", img.Uri)
 			} else {
-				parsedImages = append(parsedImages, Image{Alt: img.Alt, Uri: *parsedUrl})
+				parsedImages = append(parsedImages, ImageSourceParsed{Alt: img.Alt, Uri: *parsedUrl})
 			}
 		}
 		if len(parsedImages) > 0 {
 			blobs, err := c.RepoUploadImages(ctx, parsedImages)
 			if err != nil {
-                return "", "", fmt.Errorf("Error when uploading images: %v", err)
+				return "", "", fmt.Errorf("Error when uploading images: %v", err)
 			}
-            pb.Embed.Images = parsedImages
-            pb.Embed.UploadedImages = blobs
+			pb.Embed.Images = parsedImages
+			pb.Embed.UploadedImages = blobs
 		}
 	}
 
 	if pb.EmbedLink != "" {
 		parsedLink, err := url.Parse(pb.EmbedLink)
 		if err != nil {
-            return "", "", fmt.Errorf("Error when parsing link: %v", err)
+			return "", "", fmt.Errorf("Error when parsing link: %v", err)
 		}
 
 		siteTags, err := fetchOpenGraphTwitterTags(pb.EmbedLink)
 		if err != nil {
-            return "", "", fmt.Errorf("Error when fetching og/twitter tags from link: %v", err)
+			return "", "", fmt.Errorf("Error when fetching og/twitter tags from link: %v", err)
 		}
 
 		title := siteTags["title"]
@@ -261,63 +255,63 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 		if hasImage {
 			parsedImageUrl, err := url.Parse(imageUrl)
 			if err != nil {
-                return "", "", fmt.Errorf("Error when parsing image url: %v", err)
+				return "", "", fmt.Errorf("Error when parsing image url: %v", err)
 			}
-			previewImg := Image{
+			previewImg := ImageSourceParsed{
 				Uri: *parsedImageUrl,
 				Alt: alt,
 			}
 			b, err := c.RepoUploadImage(ctx, previewImg)
 			if err != nil {
-                return "", "", fmt.Errorf("Error when trying to upload image: %v", err)
+				return "", "", fmt.Errorf("Error when trying to upload image: %v", err)
 			}
 			if b != nil {
 				blob = *b
 			}
 		}
 
-        pb.Embed.Link.Title = title
-        pb.Embed.Link.Uri = *parsedLink
-        pb.Embed.Link.Description = description
-        pb.Embed.Link.Thumb = blob
+		pb.Embed.Link.Title = title
+		pb.Embed.Link.Uri = *parsedLink
+		pb.Embed.Link.Description = description
+		pb.Embed.Link.Thumb = blob
 	}
 
-    if pb.EmbedPostQuote != "" {
-        cid, _, err := c.RepoGetPost(ctx, pb.EmbedPostQuote) 
-        if err != nil {
-            return "", "", fmt.Errorf("Error when getting quoted post: %v", err)
-        }
-        pb.Embed.Record.Cid = cid 
-        pb.Embed.Record.Uri = pb.EmbedPostQuote
-    }
+	if pb.EmbedPostQuote != "" {
+		_, cid, err := c.RepoGetPostAndCid(ctx, pb.EmbedPostQuote)
+		if err != nil {
+			return "", "", fmt.Errorf("Error when getting quoted post: %v", err)
+		}
+		pb.Embed.Record.Cid = cid
+		pb.Embed.Record.Uri = pb.EmbedPostQuote
+	}
 
-    if pb.ReplyUri != "" {
-        cid, replyPost, err := c.RepoGetPost(ctx, pb.ReplyUri) 
-        if err != nil {
-            return "", "", fmt.Errorf("Error when getting reply post: %v", err)
-        }
-        
-        var rootCid, rootUri string
-        if replyPost.Reply != nil && *replyPost.Reply != (bsky.FeedPost_ReplyRef{}) {
-            rootCid = replyPost.Reply.Root.Cid
-            rootUri = replyPost.Reply.Root.Uri
-        } else {
-            rootCid = cid
-            rootUri = pb.ReplyUri
-        }
+	if pb.ReplyUri != "" {
+		replyPost, cid, err := c.RepoGetPostAndCid(ctx, pb.ReplyUri)
+		if err != nil {
+			return "", "", fmt.Errorf("Error when getting reply post: %v", err)
+		}
 
-        pb.ReplyReference = ReplyReference{
-            Uri: pb.ReplyUri,
-            Cid: cid,
-            RootUri: rootUri,
-            RootCid: rootCid,
-        }
-    }
+		var rootCid, rootUri string
+		if replyPost.Reply != nil && *replyPost.Reply != (bsky.FeedPost_ReplyRef{}) {
+			rootCid = replyPost.Reply.Root.Cid
+			rootUri = replyPost.Reply.Root.Uri
+		} else {
+			rootCid = cid
+			rootUri = pb.ReplyUri
+		}
+
+		pb.ReplyReference = ReplyReference{
+			Uri:     pb.ReplyUri,
+			Cid:     cid,
+			RootUri: rootUri,
+			RootCid: rootCid,
+		}
+	}
 
 	// Build post
 	post, err := pb.Build()
 	if err != nil {
-        return "", "", fmt.Errorf("Error when building post: %v", err)
+		return "", "", fmt.Errorf("Error when building post: %v", err)
 	}
 
 	return c.RepoCreatePostRecord(ctx, post)
@@ -332,7 +326,7 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 	post.Text = pb.Text
 	post.LexiconTypeID = "app.bsky.feed.post"
 	post.CreatedAt = time.Now().Format(time.RFC3339)
-    post.Tags = pb.AdditionalTags
+	post.Tags = pb.AdditionalTags
 
 	// RichtextFacet Section
 	// https://docs.bsky.app/docs/advanced-guides/post-richtext
@@ -429,7 +423,7 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 	post.Facets = Facets
 
 	var FeedPost_Embed bsky.FeedPost_Embed
-    embedFlag := true
+	embedFlag := true
 
 	// Embed Section (either external links or images)
 	// As of now it allows only one Embed type per post:
@@ -463,39 +457,38 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 		FeedPost_Embed.EmbedImages = &EmbedImages
 
 	} else if pb.Embed.Record != (RecordRef{}) {
-        EmbedRecord := bsky.EmbedRecord{
-            LexiconTypeID: "app.bsky.embed.record",
-            Record: &atproto.RepoStrongRef{
-                LexiconTypeID: "com.atproto.repo.strongRef", 
-                Cid: pb.Embed.Record.Cid,
-                Uri: pb.Embed.Record.Uri,
-            },
-        }
+		EmbedRecord := bsky.EmbedRecord{
+			LexiconTypeID: "app.bsky.embed.record",
+			Record: &atproto.RepoStrongRef{
+				LexiconTypeID: "com.atproto.repo.strongRef",
+				Cid:           pb.Embed.Record.Cid,
+				Uri:           pb.Embed.Record.Uri,
+			},
+		}
 
-        FeedPost_Embed.EmbedRecord = &EmbedRecord
-    } else {
-        embedFlag = false 
-    }
+		FeedPost_Embed.EmbedRecord = &EmbedRecord
+	} else {
+		embedFlag = false
+	}
 
 	// avoid error when trying to marshal empty field (*bsky.FeedPost_Embed)
 	if embedFlag {
 		post.Embed = &FeedPost_Embed
 	}
 
-
-    // set reply 
-    if pb.ReplyReference != (ReplyReference{}) {
-        post.Reply = &bsky.FeedPost_ReplyRef{
-            Parent: &atproto.RepoStrongRef{
-                Uri: pb.ReplyReference.Uri,
-                Cid: pb.ReplyReference.Cid,
-            },
-            Root: &atproto.RepoStrongRef{
-                Uri: pb.ReplyReference.RootUri,
-                Cid: pb.ReplyReference.RootCid,
-            },
-        }
-    }
+	// set reply
+	if pb.ReplyReference != (ReplyReference{}) {
+		post.Reply = &bsky.FeedPost_ReplyRef{
+			Parent: &atproto.RepoStrongRef{
+				Uri: pb.ReplyReference.Uri,
+				Cid: pb.ReplyReference.Cid,
+			},
+			Root: &atproto.RepoStrongRef{
+				Uri: pb.ReplyReference.RootUri,
+				Cid: pb.ReplyReference.RootCid,
+			},
+		}
+	}
 
 	return post, nil
 }

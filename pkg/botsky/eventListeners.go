@@ -9,132 +9,141 @@ import (
 	"github.com/davhofer/indigo/api/bsky"
 )
 
-// app.bsky.notification tools
-
-
 type Handler func(context.Context, *Client, []*bsky.NotificationListNotifications_Notification)
 
-
 type PollingNotificationListener struct {
-    Client *Client
-    ctx context.Context
-    Active bool
-    Handlers map[string]Handler
-    stopSignal chan bool 
-    PollingInterval time.Duration
-    mutex sync.Mutex
+	Client          *Client
+	ctx             context.Context
+	Active          bool
+	Handlers        map[string]Handler
+	stopSignal      chan bool
+	PollingInterval time.Duration
+	mutex           sync.Mutex
 }
-
 
 func NewPollingNotificationListener(ctx context.Context, client *Client) *PollingNotificationListener {
-    return &PollingNotificationListener{
-        Client: client,
-        ctx: ctx,
-        Active: false,
-        Handlers: make(map[string]Handler),
-        stopSignal: make(chan bool, 1),
-        PollingInterval: time.Duration(time.Second * 5),
-    }
+	return &PollingNotificationListener{
+		Client:          client,
+		ctx:             ctx,
+		Active:          false,
+		Handlers:        make(map[string]Handler),
+		stopSignal:      make(chan bool, 1),
+		PollingInterval: time.Duration(time.Second * 5), // Default polling interval: 5s
+	}
 }
 
+func (l *PollingNotificationListener) SetPollingInterval(seconds uint) {
+	if seconds == 0 {
+		seconds = 1
+	}
+	restart := false
+	if l.Active {
+		l.Stop()
+		restart = true
+	}
+	l.PollingInterval = time.Duration(time.Duration(seconds) * time.Second)
+	if restart {
+		l.Start()
+	}
+}
 
 // try to register handler, make sure id is unique
 func (l *PollingNotificationListener) RegisterHandler(id string, handler Handler) error {
-    if _, exists := l.Handlers[id]; exists {
-        return fmt.Errorf("Handler with id %s already exists.", id)
-    }
-    l.Handlers[id] = handler
-    return nil
+	if _, exists := l.Handlers[id]; exists {
+		return fmt.Errorf("Handler with id %s already exists.", id)
+	}
+	l.Handlers[id] = handler
+	return nil
 }
 func (l *PollingNotificationListener) DeregisterHandler(id string) error {
-    if _, exists := l.Handlers[id]; !exists {
-        return fmt.Errorf("Handler with id %s is not registered.", id)
-    }
-    delete(l.Handlers, id)
-    return nil
+	if _, exists := l.Handlers[id]; !exists {
+		return fmt.Errorf("Handler with id %s is not registered.", id)
+	}
+	delete(l.Handlers, id)
+	return nil
 }
 
 // start listening. this starts a new go routine
 func (l *PollingNotificationListener) Start() {
-    if l.Active {
-        fmt.Println("Listener is already active.")
-        return
-    }
-    l.Active = true 
-    go l.listen()
-}
-// stop listening
-func (l *PollingNotificationListener) Stop() {
-    if !l.Active {
-        fmt.Println("Listener is already stopped.")
-        return
-    }
-    l.stopSignal <- true
-    l.Active = false 
+	if l.Active {
+		fmt.Println("Listener is already active.")
+		return
+	}
+	l.Active = true
+	go l.listen()
 }
 
+// stop listening
+func (l *PollingNotificationListener) Stop() {
+	if !l.Active {
+		fmt.Println("Listener is already stopped.")
+		return
+	}
+	l.stopSignal <- true
+	l.Active = false
+}
 
 // continuous loop that listens and distributes notifications to handlers
 // is run as a goroutine
 func (l *PollingNotificationListener) listen() {
-    ticker := time.NewTicker(l.PollingInterval)
-    logger.Println("Listener started")
-    defer fmt.Println("Listener stopped")
-    defer ticker.Stop()
+	ticker := time.NewTicker(l.PollingInterval)
+	logger.Println("Listener started")
+	defer fmt.Println("Listener stopped")
+	defer ticker.Stop()
 
-    for {
-        select {
-        case <- l.stopSignal:
-            logger.Println()
-            return
-        case <- ticker.C:
-            // check for new notifications 
-            count, err := l.Client.NotifGetUnreadCount(l.ctx) 
-            if err != nil {
-                logger.Println("Listener error (NotifGetUnreadCount):", err)
-                continue
-            }
-            if count == 0 {
-                continue
-            }
-            logger.Println("listener:", count, "new notifications")
-            // if there are, distribute to handlers
-            notifications, err := l.Client.NotifGetNotifications(l.ctx, count)
-            if err != nil {
-                logger.Println("Listener error (NotifGetNotifications):", err)
-                continue 
-            }
+	for {
+		select {
+		case <-l.stopSignal:
+			logger.Println()
+			return
+		case <-ticker.C:
+			// check for new notifications
+			count, err := l.Client.NotifGetUnreadCount(l.ctx)
+			if err != nil {
+				logger.Println("Listener error (NotifGetUnreadCount):", err)
+				continue
+			}
+			if count == 0 {
+				continue
+			}
+			logger.Println("listener:", count, "new notifications")
+			// if there are, distribute to handlers
+			notifications, err := l.Client.NotifGetNotifications(l.ctx, count)
+			if err != nil {
+				logger.Println("Listener error (NotifGetNotifications):", err)
+				continue
+			}
 
-            // mark notifications as seen
-            updateSeenInput := bsky.NotificationUpdateSeen_Input{
-                SeenAt: time.Now().UTC().Format(time.RFC3339),
-            }
-            if err := bsky.NotificationUpdateSeen(l.ctx, l.Client.XrpcClient, &updateSeenInput); err != nil {
-                logger.Println("Listener error (NotificationUpdateSeen):", err)
-                continue 
-            }
+			// mark notifications as seen
+			updateSeenInput := bsky.NotificationUpdateSeen_Input{
+				SeenAt: time.Now().UTC().Format(time.RFC3339),
+			}
+			if err := bsky.NotificationUpdateSeen(l.ctx, l.Client.XrpcClient, &updateSeenInput); err != nil {
+				logger.Println("Listener error (NotificationUpdateSeen):", err)
+				continue
+			}
 
-            for id, handler := range l.Handlers {
-                // pass in the associated id with the context
-                go handler(context.WithValue(l.ctx, "id", id), l.Client, notifications)
-            }
+			for id, handler := range l.Handlers {
+				// pass in the associated id with the context
+				go handler(context.WithValue(l.ctx, "id", id), l.Client, notifications)
+			}
 
-        }
-    }
+		}
+	}
 }
 
 // example handler that replies to mentions
 func ExampleHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
-    // iterate over all notifications
-    for _, notif := range notifications {
-        // only consider mentions 
-        if notif.Reason == "mention" {
-            // Uri (!) is the mentioning post
-            pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
-            cid, uri, err := client.Post(ctx, pb)
-            fmt.Println("Posted:", cid, uri, err)
-        }
-    }
+	// iterate over all notifications
+	for _, notif := range notifications {
+		// only consider mentions
+		if notif.Reason == "mention" {
+			// Uri (!) is the mentioning post
+			pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
+			cid, uri, err := client.Post(ctx, pb)
+			fmt.Println("Posted:", cid, uri, err)
+		}
+	}
 }
 
 /*
@@ -151,39 +160,4 @@ OnReply() {}
 etc.
 */
 
-
 // NOTE: ReasonSubject is used by replies and likes, to indicate which of the bots posts it was directed towards
-
-
-// TODO: chekc that all functions with cursers that get lists/collections have the abilitiy to iterate and get more
-
-
-// problem is, after we've had a bunch of notifications, filtering by reason will not help anymore.
-// because we don't know the reasons of the new notifications until after querying, so if we filter by reason and request n = GetUnreadCount,
-// then the filtered out notifications will just be replaced with old, already seen notifications
-func (c *Client) NotifGetNotifications(ctx context.Context, limit int64) ([]*bsky.NotificationListNotifications_Notification, error) {
-    limit = min(100, limit)
-    limit = max(1, limit)
-    limit = 10
-    priority := false
-    reasons := []string{}
-    output, err := bsky.NotificationListNotifications(ctx, c.XrpcClient, "", limit, priority, reasons, "")
-    if err != nil {
-        return nil, fmt.Errorf("Error when calling ListNotifications: %v", err) 
-    }
-
-    // TODO: iterate over remaining notifications with cursor
-    // (low prio, unlikely that there will be 100+ notifications at a time)
-
-    return output.Notifications, nil
-}
-
-func (c *Client) NotifGetUnreadCount(ctx context.Context) (int64, error) {
-    priority := false
-    seenAt := ""
-    output, err := bsky.NotificationGetUnreadCount(ctx, c.XrpcClient, priority, seenAt)
-    if err != nil {
-        return 0, fmt.Errorf("Unable to get notification unread count: %v", err)
-    }
-    return output.Count, nil
-}
