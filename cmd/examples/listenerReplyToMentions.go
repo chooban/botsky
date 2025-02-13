@@ -2,6 +2,7 @@ package main
 
 import (
 	"botsky/pkg/botsky"
+    "botsky/pkg/listeners"
 	"context"
 	"fmt"
 )
@@ -33,9 +34,9 @@ func listenerReplyToMentions() {
 
 	botsky.Sleep(1)
 
-	listener := botsky.NewPollingNotificationListener(ctx, client)
+	listener := listeners.NewPollingNotificationListener(ctx, client)
 
-	if err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler); err != nil {
+	if err := listener.RegisterHandler("replyToMentions", listeners.ExampleMentionHandler); err != nil {
 		fmt.Println(err)
 		return
 	}
