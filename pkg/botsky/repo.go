@@ -46,6 +46,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 		if len(output.Records) == 0 || lastCid == output.Records[len(output.Records)-1].Cid {
 			break
 		}
+        lastCid = output.Records[len(output.Records)-1].Cid
 		// store all record uris
 		records = append(records, output.Records...)
 

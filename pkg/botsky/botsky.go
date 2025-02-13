@@ -19,12 +19,18 @@ const ApiChat = "https://api.bsky.chat"
 
 // TODO: need to wrap requests for rate limiting?
 
+
+// TODO: store ctx directly in client to make api cleaner?
+
+// TODO: can we make xrpc clients private?
+
 type Client struct {
 	XrpcClient *xrpc.Client
 	handle     string
 	appkey     string
-	// make sure only one auth refresher runs at a time
-	refreshProcessLock sync.Mutex
+	refreshProcessLock sync.Mutex // make sure only one auth refresher runs at a time
+    ChatClient *xrpc.Client // client for accessing chat api
+    ChatCursor string
 }
 
 // Sets up a new client connecting to the given api endpoint
@@ -37,6 +43,7 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 		handle: handle,
 		appkey: appkey,
 	}
+    client.initChatClient()
 	return client, nil
 }
 
@@ -136,6 +143,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 	return postViews, nil
 }
 
+// TODO: get all posts?
 // Load enriched posts from repo/user
 func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
 	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)

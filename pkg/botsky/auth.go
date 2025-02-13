@@ -36,6 +36,15 @@ func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt st
 		Did:        did,
 	})
 
+    if c.ChatClient != nil {
+        c.ChatClient.SetAuthAsync(xrpc.AuthInfo{
+            AccessJwt:  accessJwt,
+            RefreshJwt: refreshJwt,
+            Handle:     handle,
+            Did:        did,
+        })
+    }
+
 	// Start timer for expiration of AccessJWT and session refresh
 	// parse time until expiration from accessJwt
 	tRemaining, err := getJwtTimeRemaining(accessJwt)

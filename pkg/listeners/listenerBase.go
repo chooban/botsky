@@ -110,6 +110,10 @@ func (l *Listener[EventT]) listen() {
                 fmt.Println(l.Name, "pollAndHandle error:", err)
                 continue
             }
+
+            if len(events) == 0 {
+                continue
+            }
             
 			for id, handler := range l.Handlers {
 				// pass in the associated id with the context
