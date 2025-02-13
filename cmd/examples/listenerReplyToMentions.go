@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func replyToMentions() {
+func listenerReplyToMentions() {
 	ctx := context.Background()
 
 	defer fmt.Println("botsky is going to bed...")

@@ -6,7 +6,7 @@ A Bluesky API client in Go. Use Botsky to easily build Bluesky API integrations,
 
 Provides easy-to-use interfaces for:
 
-- creating posts
+- creating posts w/ images, links, mentions, tags etc.
 - event-/notification listeners to react to mentions, replies, etc.
 - manipulating data on your PDS, read records from other PDSes
 - interacting with user profiles and social graph **(WIP)**
@@ -62,31 +62,26 @@ cid, uri, err := client.Post(ctx, pb)
 ```
 
 ```go
-text := "post with #hashtags mentioning @botsky-bot.bsky.social, an inline-link, an embedded link w/ card, additional tags, and language set to german"
+text := "post with #hashtags mentioning @botsky-bot.bsky.social, with an embedded link w/ card, additional tags, and language set to german"
 pb := botsky.NewPostBuilder(text).
-    AddMentions([]string{"@botsky-bot.bsky.social"}).
-    AddInlineLinks([]botsky.InlineLink{{ Text: "inline-link", Url: "https://xkcd.com"}}).
     AddEmbedLink("https://github.com/davhofer/botsky").
     AddTags([]string{"botsky", "is", "happy"}).
     AddLanguage("de")
 cid, uri, err = client.Post(ctx, pb)
 ```
 
+```go
+text := "Here are two inline links: https://google.com and a second clickable link"
+pb := botsky.NewPostBuilder(text).
+    AddInlineLinks([]botsky.InlineLink{{ Text: "a second clickable link", Url: "https://xkcd.com"}}).
+
+cid, uri, err := client.Post(ctx, pb)
+```
+
 Create NotificationListener and reply to mentions:
 
 ```go
-listener := botsky.NewPollingNotificationListener(ctx, client)
-err := listener.RegisterHandler("replyToMentions", botsky.ExampleHandler)
-// (error handling...)
-listener.Start()
-botsky.WaitUntilCancel()
-listener.Stop()
-```
-
-The example handler function used to reply to mentions:
-
-```go
-func ExampleHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
+func MentionHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
 	// iterate over all notifications
 	for _, notif := range notifications {
 		// only consider mentions
@@ -97,6 +92,17 @@ func ExampleHandler(ctx context.Context, client *Client, notifications []*bsky.N
 			fmt.Println("Posted:", cid, uri, err)
 		}
 	}
+}
+
+func main () {
+    // ...
+    listener := botsky.NewPollingNotificationListener(ctx, client)
+    handlerId := "replyToMentions"
+    err := listener.RegisterHandler(handlerId, MentionHandler)
+    // (error handling...)
+    listener.Start()
+    botsky.WaitUntilCancel()
+    listener.Stop()
 }
 ```
 
@@ -109,16 +115,23 @@ decentralization/federation
 
 ## TODO
 
+- botsky demo/reference implementation. use it to post changelog/updates to bluesky => if users want to periodically post from bot, how to do that?
+- chat interface, send & read messages, configure bot commands
+  - could set up bot command listeners with authorized users, post creation through chat, etc.
 - finish PDS/Repo API functionality
 - get user profile information, social graph interactions, following & followers, etc.
 - further api integration (lists, feeds, graph, labels, etc.)
 - code docs, detailed feature overview
 
 - builtin adjustable rate limiting? limits depending on bsky api, pds, ...
-- jetStream integration/listener interface?
+- jetStream integration/listener interface? => users could also do the jetstream integration themselvers...
 - refer to Bluesky guidelines related to API, bots, etc., bots should adhere to guidelines
 - trust, verification, cryptography: in general the server hosting the PDS is not trusted, should we verify data returned by it?
 - reliance on Bluesky's (the company) AppView...
+
+### Done
+
+- auto-detect facets from text (or can be provided manually)
 
 ## Acknowledgements
 

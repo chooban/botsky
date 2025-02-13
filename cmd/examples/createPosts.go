@@ -35,14 +35,12 @@ func createPosts() {
 
 	mentionHandle := "@botsky-bot.bsky.social"
 	text := fmt.Sprintf("This is a post with #hashtags, mentioning myself %s. It includes an inline-link, as well as an embedded link. Note the additional tags and the post language :)", mentionHandle)
-	mentions := []string{mentionHandle}
 	inlineLinks := []botsky.InlineLink{{Text: "inline-link", Url: "https://xkcd.com"}}
 
 	embeddedLink := "https://github.com/davhofer/botsky"
 
 	// a post including mention, tags, inline link, language, and embedded link
 	pb := botsky.NewPostBuilder(text).
-		AddMentions(mentions).
 		AddInlineLinks(inlineLinks).
 		AddEmbedLink(embeddedLink).AddTags([]string{"tagged", "cool"}).AddLanguage("de")
 
@@ -73,7 +71,7 @@ func createPosts() {
 	botsky.Sleep(2)
 
 	// reply to the previous post
-	pb = botsky.NewPostBuilder("this is a reply").ReplyTo(uri)
+    pb = botsky.NewPostBuilder("this is a reply. also, look at this link: https://google.com").ReplyTo(uri)
 	cid, uri, err = client.Post(ctx, pb)
 	if err != nil {
 		fmt.Println("Error:", err)

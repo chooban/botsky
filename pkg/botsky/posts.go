@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
+    "regexp"
 	"time"
 
 	"github.com/davhofer/indigo/api/atproto"
@@ -26,15 +26,12 @@ const (
 	Facet_Tag
 )
 
-type InlineLink struct {
-	Text string
-	Url  string
-}
+const domainRegex = `[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,10}`
 
-type Facet struct {
-	Ftype   Facet_Type
-	Value   string
-	T_facet string
+
+type InlineLink struct {
+	Text string // a substring of the post text which will be clickable as a link
+	Url  string // the link url
 }
 
 type RecordRef struct {
@@ -103,25 +100,19 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 }
 
 type PostBuilder struct {
-	Text           string
-	Facet          []Facet
-	ReplyUri       string
-	ReplyReference ReplyReference
-	Embed          Embed
-	EmbedLink      string
-	EmbedImages    []ImageSource
-	EmbedPostQuote string
-	AdditionalTags []string
-	HasEmbed       bool
-	Languages      []string
-	RenderHashtags bool
-	Mentions       []string
+	Text             string
+	AdditionalTags   []string
+    InlineLinks      []InlineLink
+	Languages        []string
+	ReplyUri         string
+	EmbedLink        string
+	EmbedImages      []ImageSource
+	EmbedPostQuote   string
 }
 
 func NewPostBuilder(text string) *PostBuilder {
 	pb := &PostBuilder{
-		Text:           text,
-		RenderHashtags: true,
+		Text:             text,
 	}
 
 	return pb
@@ -132,29 +123,13 @@ func (pb *PostBuilder) AddTags(tags []string) *PostBuilder {
 	return pb
 }
 
-func (pb *PostBuilder) AddFacet(ftype Facet_Type, value string, text string) *PostBuilder {
-	pb.Facet = append(pb.Facet, Facet{
-		Ftype:   ftype,
-		Value:   value,
-		T_facet: text,
-	})
-	return pb
-}
-
 func (pb *PostBuilder) AddInlineLinks(links []InlineLink) *PostBuilder {
-	for _, link := range links {
-		pb.AddFacet(Facet_Link, link.Url, link.Text)
-	}
+    pb.InlineLinks = append(pb.InlineLinks, links...)
 	return pb
 }
 
 func (pb *PostBuilder) AddLanguage(language string) *PostBuilder {
 	pb.Languages = append(pb.Languages, language)
-	return pb
-}
-
-func (pb *PostBuilder) AddMentions(mentions []string) *PostBuilder {
-	pb.Mentions = append(pb.Mentions, mentions...)
 	return pb
 }
 
@@ -178,6 +153,7 @@ func (pb *PostBuilder) AddQuotedPost(postUri string) *PostBuilder {
 	return pb
 }
 
+
 func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, error) {
 	nEmbeds := 0
 	if pb.EmbedImages != nil {
@@ -193,28 +169,13 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 	if nEmbeds > 1 {
 		return "", "", fmt.Errorf("Can only include one type of Embed (images, embedded link, quoted post) in posts.")
 	}
+    var embed Embed
+
 
 	if len(pb.Languages) == 0 {
 		pb.Languages = []string{"en"}
 	}
-
-	if pb.Mentions != nil {
-		for _, handle := range pb.Mentions {
-			var resolveHandle string
-			if strings.HasPrefix(handle, "@") {
-				resolveHandle = handle[1:]
-			} else {
-				resolveHandle = handle
-			}
-			resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, resolveHandle)
-			if err != nil {
-				return "", "", fmt.Errorf("Unable to resolve handle: %v", err)
-			}
-			pb.AddFacet(Facet_Mention, resolveOutput.Did, handle)
-		}
-
-	}
-
+    // prepare embeds
 	if pb.EmbedImages != nil {
 		var parsedImages []ImageSourceParsed
 		for _, img := range pb.EmbedImages {
@@ -230,8 +191,8 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			if err != nil {
 				return "", "", fmt.Errorf("Error when uploading images: %v", err)
 			}
-			pb.Embed.Images = parsedImages
-			pb.Embed.UploadedImages = blobs
+			embed.Images = parsedImages
+			embed.UploadedImages = blobs
 		}
 	}
 
@@ -270,10 +231,10 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			}
 		}
 
-		pb.Embed.Link.Title = title
-		pb.Embed.Link.Uri = *parsedLink
-		pb.Embed.Link.Description = description
-		pb.Embed.Link.Thumb = blob
+		embed.Link.Title = title
+		embed.Link.Uri = *parsedLink
+		embed.Link.Description = description
+		embed.Link.Thumb = blob
 	}
 
 	if pb.EmbedPostQuote != "" {
@@ -281,10 +242,11 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 		if err != nil {
 			return "", "", fmt.Errorf("Error when getting quoted post: %v", err)
 		}
-		pb.Embed.Record.Cid = cid
-		pb.Embed.Record.Uri = pb.EmbedPostQuote
+		embed.Record.Cid = cid
+		embed.Record.Uri = pb.EmbedPostQuote
 	}
 
+    var replyReference ReplyReference
 	if pb.ReplyUri != "" {
 		replyPost, cid, err := c.RepoGetPostAndCid(ctx, pb.ReplyUri)
 		if err != nil {
@@ -300,7 +262,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			rootUri = pb.ReplyUri
 		}
 
-		pb.ReplyReference = ReplyReference{
+		replyReference = ReplyReference{
 			Uri:     pb.ReplyUri,
 			Cid:     cid,
 			RootUri: rootUri,
@@ -308,8 +270,35 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 		}
 	}
 
+    // parse mentions
+    mentionRegex := `[^a-zA-Z0-9](@` + domainRegex + `)`
+    re := regexp.MustCompile(mentionRegex)
+	matches := re.FindAllStringSubmatchIndex(pb.Text, -1)
+
+
+    var mentionMatches []struct{Value string; Start int; End int; Did string}
+    for _, m := range matches {
+        start := m[2]
+        end := m[3]
+        value := pb.Text[start:end] 
+        // cut off the @
+        handle := value[1:]
+        resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, handle)
+        if err != nil {
+            // cannot resolve handle => not a mention
+            continue 
+        }
+        mentionMatches = append(mentionMatches, struct{Value string; Start int; End int; Did string}{
+            Value: handle,
+            Start: start,
+            End: end,
+            Did: resolveOutput.Did,
+        })
+    }
+
+
 	// Build post
-	post, err := pb.Build()
+    post, err := buildPost(pb, embed, replyReference, mentionMatches)
 	if err != nil {
 		return "", "", fmt.Errorf("Error when building post: %v", err)
 	}
@@ -319,8 +308,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 }
 
 // Build the request
-func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
-
+func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, mentionMatches []struct{Value string; Start int; End int; Did string}) (bsky.FeedPost, error) {
 	post := bsky.FeedPost{Langs: pb.Languages}
 
 	post.Text = pb.Text
@@ -333,51 +321,44 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 
 	Facets := []*bsky.RichtextFacet{}
 
-	for _, f := range pb.Facet {
+    // mentions
+    for _, match := range mentionMatches {
 		facet := &bsky.RichtextFacet{}
 		features := []*bsky.RichtextFacet_Features_Elem{}
-		feature := &bsky.RichtextFacet_Features_Elem{}
-
-		switch f.Ftype {
-
-		case Facet_Link:
-			{
-				feature = &bsky.RichtextFacet_Features_Elem{
-					RichtextFacet_Link: &bsky.RichtextFacet_Link{
-						LexiconTypeID: f.Ftype.String(),
-						Uri:           f.Value,
-					},
-				}
-			}
-
-		case Facet_Mention:
-			{
-				feature = &bsky.RichtextFacet_Features_Elem{
-					RichtextFacet_Mention: &bsky.RichtextFacet_Mention{
-						LexiconTypeID: f.Ftype.String(),
-						Did:           f.Value,
-					},
-				}
-			}
-
-		case Facet_Tag:
-			{
-				feature = &bsky.RichtextFacet_Features_Elem{
-					RichtextFacet_Tag: &bsky.RichtextFacet_Tag{
-						LexiconTypeID: f.Ftype.String(),
-						Tag:           f.Value,
-					},
-				}
-			}
-
-		}
-
+        feature := &bsky.RichtextFacet_Features_Elem{
+            RichtextFacet_Mention: &bsky.RichtextFacet_Mention{
+                LexiconTypeID: Facet_Mention.String(),
+                Did: match.Did,
+            },
+        }
 		features = append(features, feature)
 		facet.Features = features
 
-		ByteStart, ByteEnd, err := findSubstring(post.Text, f.T_facet)
+		index := &bsky.RichtextFacet_ByteSlice{
+			ByteStart: int64(match.Start),
+			ByteEnd:   int64(match.End),
+		}
+		facet.Index = index
+
+		Facets = append(Facets, facet)
+    }
+
+    // user-provided inline links
+    for _, link := range pb.InlineLinks {
+		facet := &bsky.RichtextFacet{}
+		features := []*bsky.RichtextFacet_Features_Elem{}
+        feature := &bsky.RichtextFacet_Features_Elem{
+            RichtextFacet_Link: &bsky.RichtextFacet_Link{
+                LexiconTypeID: Facet_Link.String(),
+                Uri:           link.Url,
+            },
+        }
+		features = append(features, feature)
+		facet.Features = features
+
+		ByteStart, ByteEnd, err := findSubstring(post.Text, link.Text)
 		if err != nil {
-			return post, fmt.Errorf("Unable to find the substring: %v , %v", f.T_facet, err)
+			return post, fmt.Errorf("Unable to find the substring: %v , %v", Facet_Link, err)
 		}
 
 		index := &bsky.RichtextFacet_ByteSlice{
@@ -387,37 +368,58 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 		facet.Index = index
 
 		Facets = append(Facets, facet)
-	}
+    }
 
-	// We parse hashtags with regex instead of relying on substring matching
-	// The reason is that it is relatively common to have similar/overalpping hashtags, like
-	// #atproto and #atprotodev, which could lead to mistakes
-	if pb.RenderHashtags {
-		hashtagRegex := `(?:^|\s)(#[^\d\s]\S*)`
-		matches := findRegexMatches(post.Text, hashtagRegex)
-		for _, m := range matches {
-			facet := &bsky.RichtextFacet{}
-			features := []*bsky.RichtextFacet_Features_Elem{}
-			feature := &bsky.RichtextFacet_Features_Elem{}
+    // auto-detect inline links
+    urlRegex := `https?:\/\/` + domainRegex + `(\/(` + domainRegex + `)+)*\/?`
+    matches := findRegexMatches(pb.Text, urlRegex)
+    for _, match := range matches {
+		facet := &bsky.RichtextFacet{}
+		features := []*bsky.RichtextFacet_Features_Elem{}
+        feature := &bsky.RichtextFacet_Features_Elem{
+            RichtextFacet_Link: &bsky.RichtextFacet_Link{
+                LexiconTypeID: Facet_Link.String(),
+                Uri: match.Value,
+            },
+        }
+		features = append(features, feature)
+		facet.Features = features
 
-			feature = &bsky.RichtextFacet_Features_Elem{
-				RichtextFacet_Tag: &bsky.RichtextFacet_Tag{
-					LexiconTypeID: Facet_Tag.String(),
-					Tag:           stripHashtag(m.Value),
-				},
-			}
-
-			features = append(features, feature)
-			facet.Features = features
-
-			index := &bsky.RichtextFacet_ByteSlice{
-				ByteStart: int64(m.Start),
-				ByteEnd:   int64(m.End),
-			}
-			facet.Index = index
-
-			Facets = append(Facets, facet)
+		index := &bsky.RichtextFacet_ByteSlice{
+			ByteStart: int64(match.Start),
+			ByteEnd:   int64(match.End),
 		}
+		facet.Index = index
+
+		Facets = append(Facets, facet)
+
+    }
+
+    // hashtags
+    hashtagRegex := `(?:^|\s)(#[^\d\s]\S*)`
+    matches = findRegexMatches(post.Text, hashtagRegex)
+    for _, m := range matches {
+        facet := &bsky.RichtextFacet{}
+        features := []*bsky.RichtextFacet_Features_Elem{}
+        feature := &bsky.RichtextFacet_Features_Elem{}
+
+        feature = &bsky.RichtextFacet_Features_Elem{
+            RichtextFacet_Tag: &bsky.RichtextFacet_Tag{
+                LexiconTypeID: Facet_Tag.String(),
+                Tag:           stripHashtag(m.Value),
+            },
+        }
+
+        features = append(features, feature)
+        facet.Features = features
+
+        index := &bsky.RichtextFacet_ByteSlice{
+            ByteStart: int64(m.Start),
+            ByteEnd:   int64(m.End),
+        }
+        facet.Index = index
+
+        Facets = append(Facets, facet)
 	}
 
 	post.Facets = Facets
@@ -428,41 +430,41 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 	// Embed Section (either external links or images)
 	// As of now it allows only one Embed type per post:
 	// https://github.com/bluesky-social/indigo/blob/main/api/bsky/feedpost.go
-	if pb.Embed.Link != (Link{}) {
+	if embed.Link != (Link{}) {
 
 		FeedPost_Embed.EmbedExternal = &bsky.EmbedExternal{
 			LexiconTypeID: "app.bsky.embed.external",
 			External: &bsky.EmbedExternal_External{
-				Title:       pb.Embed.Link.Title,
-				Uri:         pb.Embed.Link.Uri.String(),
-				Description: pb.Embed.Link.Description,
-				Thumb:       &pb.Embed.Link.Thumb,
+				Title:       embed.Link.Title,
+				Uri:         embed.Link.Uri.String(),
+				Description: embed.Link.Description,
+				Thumb:       &embed.Link.Thumb,
 			},
 		}
 
-	} else if len(pb.Embed.Images) != 0 && len(pb.Embed.Images) == len(pb.Embed.UploadedImages) {
+	} else if len(embed.Images) != 0 && len(embed.Images) == len(embed.UploadedImages) {
 
 		EmbedImages := bsky.EmbedImages{
 			LexiconTypeID: "app.bsky.embed.images",
-			Images:        make([]*bsky.EmbedImages_Image, len(pb.Embed.Images)),
+			Images:        make([]*bsky.EmbedImages_Image, len(embed.Images)),
 		}
 
-		for i, img := range pb.Embed.Images {
+		for i, img := range embed.Images {
 			EmbedImages.Images[i] = &bsky.EmbedImages_Image{
 				Alt:   img.Alt,
-				Image: &pb.Embed.UploadedImages[i],
+				Image: &embed.UploadedImages[i],
 			}
 		}
 
 		FeedPost_Embed.EmbedImages = &EmbedImages
 
-	} else if pb.Embed.Record != (RecordRef{}) {
+	} else if embed.Record != (RecordRef{}) {
 		EmbedRecord := bsky.EmbedRecord{
 			LexiconTypeID: "app.bsky.embed.record",
 			Record: &atproto.RepoStrongRef{
 				LexiconTypeID: "com.atproto.repo.strongRef",
-				Cid:           pb.Embed.Record.Cid,
-				Uri:           pb.Embed.Record.Uri,
+				Cid:           embed.Record.Cid,
+				Uri:           embed.Record.Uri,
 			},
 		}
 
@@ -477,15 +479,15 @@ func (pb *PostBuilder) Build() (bsky.FeedPost, error) {
 	}
 
 	// set reply
-	if pb.ReplyReference != (ReplyReference{}) {
+	if replyReference != (ReplyReference{}) {
 		post.Reply = &bsky.FeedPost_ReplyRef{
 			Parent: &atproto.RepoStrongRef{
-				Uri: pb.ReplyReference.Uri,
-				Cid: pb.ReplyReference.Cid,
+				Uri: replyReference.Uri,
+				Cid: replyReference.Cid,
 			},
 			Root: &atproto.RepoStrongRef{
-				Uri: pb.ReplyReference.RootUri,
-				Cid: pb.ReplyReference.RootCid,
+				Uri: replyReference.RootUri,
+				Cid: replyReference.RootCid,
 			},
 		}
 	}
