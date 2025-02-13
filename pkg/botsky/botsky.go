@@ -33,8 +33,6 @@ type Client struct {
 	appkey     string
 	// make sure only one auth refresher runs at a time
 	refreshProcessLock sync.Mutex
-	// read-write lock to ensure that concurrent processes can access the http auth information without problems
-	authLock sync.RWMutex
 }
 
 // Sets up a new client connecting to the given api endpoint
