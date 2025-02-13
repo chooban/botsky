@@ -2,10 +2,27 @@ package main
 
 import (
 	"botsky/pkg/botsky"
-    "botsky/pkg/listeners"
+	"botsky/pkg/listeners"
 	"context"
 	"fmt"
+
+	"github.com/davhofer/indigo/api/bsky"
 )
+
+// example handler that replies to mentions
+// gets called by the listener
+func ExampleMentionHandler(ctx context.Context, client *botsky.Client, notifications []*bsky.NotificationListNotifications_Notification) {
+	// iterate over all notifications
+	for _, notif := range notifications {
+		// only consider mentions
+		if notif.Reason == "mention" {
+			// Uri is the mentioning post
+			pb := botsky.NewPostBuilder("hello :)").ReplyTo(notif.Uri)
+			cid, uri, err := client.Post(ctx, pb)
+			fmt.Println("Posted:", cid, uri, err)
+		}
+	}
+}
 
 func listenerReplyToMentions() {
 	ctx := context.Background()
@@ -36,7 +53,7 @@ func listenerReplyToMentions() {
 
 	listener := listeners.NewPollingNotificationListener(ctx, client)
 
-	if err := listener.RegisterHandler("replyToMentions", listeners.ExampleMentionHandler); err != nil {
+	if err := listener.RegisterHandler("replyToMentions", ExampleMentionHandler); err != nil {
 		fmt.Println(err)
 		return
 	}

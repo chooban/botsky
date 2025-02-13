@@ -128,9 +128,10 @@ func (l *Listener[EventT]) listen() {
 /*
 handler functions can be closures, to include e.g. pointers to containers for storing results, channels, the client, etc. to handlers
 
-TODO: error handling? let user handle channels?
-TODO: pass the client directly to handler, or let them include it with closure? not every handler will need client, but many...
-TODO: cancellation/timeout of handlers
+user must take care of errors in handler, e.g. by logging
+
+TODO: cancellation/timeout of handlers?
+TODO: logging
 
 should we directly implement specific event handlers? e.g.
 OnMention() {}

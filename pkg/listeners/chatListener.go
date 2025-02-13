@@ -3,7 +3,6 @@ package listeners
 import (
 	"botsky/pkg/botsky"
 	"context"
-	"fmt"
 
 	"github.com/davhofer/indigo/api/chat"
 )
@@ -21,23 +20,3 @@ func pollChatLogs(ctx context.Context, client *botsky.Client) ([]*chat.ConvoGetL
 func NewPollingChatListener(ctx context.Context, client *botsky.Client) *PollingChatListener {
     return &PollingChatListener{*NewListener(ctx, client, "PollingChatListener", pollChatLogs)}
 }
-
-
-// example handler that replies to dms by repeating their content
-func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatElems []*chat.ConvoGetLog_Output_Logs_Elem) {
-	// iterate over all notifications
-	for _, elem := range chatElems {
-		// only consider messages from other people
-        if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
-            convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
-            msgText := elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Text
-            reply := "You said: '" + msgText + "'"
-            if _, _, err := client.ChatConvoSendMessage(ctx, convoId, reply); err != nil {
-                fmt.Println("Error:", err)
-            }
-        }
-	}
-}
-
-
-// NOTE: ReasonSubject is used by replies and likes, to indicate which of the bots posts it was directed towards
