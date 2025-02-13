@@ -21,7 +21,7 @@ import (
 // use curser to go through all pages
 
 func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]string, error) {
-	output, err := atproto.RepoDescribeRepo(ctx, c.XrpcClient, handleOrDid)
+	output, err := atproto.RepoDescribeRepo(ctx, c.xrpcClient, handleOrDid)
 	if err != nil {
 		return nil, fmt.Errorf("RepoGetCollections error (RepoDescribeRepo): %v", err)
 	}
@@ -36,7 +36,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 	// iterate until we got all records
 	for {
 		// query repo for collection with updated cursor
-		output, err := atproto.RepoListRecords(ctx, c.XrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
+		output, err := atproto.RepoListRecords(ctx, c.xrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("RepoGetRecords error (RepoListRecords): %v", err)
 		}
@@ -91,7 +91,7 @@ func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resu
 	if err != nil {
 		return fmt.Errorf("RepoGetCidOfRecord error (ParseAtUri): %v", err)
 	}
-	record, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
+	record, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
 	if err != nil {
 		return fmt.Errorf("RepoGetRecordAsType error (RepoGetRecord): %v", err)
 	}
@@ -105,7 +105,7 @@ func (c *Client) RepoGetPostAndCid(ctx context.Context, postUri string) (bsky.Fe
 	if err != nil {
 		return post, "", fmt.Errorf("RepoGetPostAndCid error (ParseAtUri): %v", err)
 	}
-	record, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
+	record, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", parsedUri.Collection, parsedUri.Did, parsedUri.Rkey)
 	if err != nil {
 		return post, "", fmt.Errorf("RepoGetPostAndCid error (RepoGetRecord): %v", err)
 	}
@@ -120,7 +120,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 	if err != nil {
 		return fmt.Errorf("RepoDeletePost error (ParseAtUri): %v", err)
 	}
-	_, err = atproto.RepoDeleteRecord(ctx, c.XrpcClient, &atproto.RepoDeleteRecord_Input{
+	_, err = atproto.RepoDeleteRecord(ctx, c.xrpcClient, &atproto.RepoDeleteRecord_Input{
 		Collection: "app.bsky.feed.post",
 		Repo:       c.handle,
 		Rkey:       parsedUri.Rkey,
@@ -157,7 +157,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (
 		log.Printf("Couldn't retrive the image: %v , %v", image, err)
 	}
 
-	resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
+	resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
 	if err != nil {
 		return nil, fmt.Errorf("RepoUploadImage error (RepoUploadBlob): %v", err)
 	}
@@ -184,7 +184,7 @@ func (c *Client) RepoUploadImages(ctx context.Context, images []ImageSourceParse
 			log.Printf("Couldn't retrive the image: %v , %v", img, err)
 		}
 
-		resp, err := atproto.RepoUploadBlob(ctx, c.XrpcClient, bytes.NewReader(getImage))
+		resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
 		if err != nil {
 			return nil, fmt.Errorf("RepoUploadImages error (RepoUploadBlob): %v", err)
 		}
@@ -208,12 +208,12 @@ func (c *Client) RepoCreatePostRecord(ctx context.Context, post bsky.FeedPost) (
 		// collection: The NSID of the record collection.
 		Collection: "app.bsky.feed.post",
 		// repo: The handle or DID of the repo (aka, current account).
-		Repo: c.XrpcClient.Auth.Did,
+		Repo: c.xrpcClient.Auth.Did,
 		// record: The record itself. Must contain a $type field.
 		Record: &lexutil.LexiconTypeDecoder{Val: &post},
 	}
 
-	response, err := atproto.RepoCreateRecord(ctx, c.XrpcClient, post_input)
+	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, post_input)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to post, %v", err)
 	}

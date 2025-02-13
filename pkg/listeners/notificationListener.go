@@ -4,7 +4,6 @@ import (
 	"botsky/pkg/botsky"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/davhofer/indigo/api/bsky"
 )
@@ -31,10 +30,7 @@ func pollNotifications(ctx context.Context, client *botsky.Client) ([]*bsky.Noti
     }
 
     // mark notifications as seen
-    updateSeenInput := bsky.NotificationUpdateSeen_Input{
-        SeenAt: time.Now().UTC().Format(time.RFC3339),
-    }
-    if err := bsky.NotificationUpdateSeen(ctx, client.XrpcClient, &updateSeenInput); err != nil {
+    if err := client.NotifUpdateSeenNow(ctx); err != nil {
         return nil, err
     }
 

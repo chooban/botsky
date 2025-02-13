@@ -29,15 +29,15 @@ func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 }
 
 func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) error {
-	c.XrpcClient.SetAuthAsync(xrpc.AuthInfo{
+	c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{
 		AccessJwt:  accessJwt,
 		RefreshJwt: refreshJwt,
 		Handle:     handle,
 		Did:        did,
 	})
 
-    if c.ChatClient != nil {
-        c.ChatClient.SetAuthAsync(xrpc.AuthInfo{
+    if c.chatClient != nil {
+        c.chatClient.SetAuthAsync(xrpc.AuthInfo{
             AccessJwt:  accessJwt,
             RefreshJwt: refreshJwt,
             Handle:     handle,
@@ -66,9 +66,9 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 	defer c.refreshProcessLock.Unlock()
 
 	// check that RefreshJWT is still (for some time) valid
-	if tRemaining, _ := getJwtTimeRemaining(c.XrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
+	if tRemaining, _ := getJwtTimeRemaining(c.xrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
 		// refresh the session
-		session, err := atproto.ServerRefreshSession(ctx, c.XrpcClient)
+		session, err := atproto.ServerRefreshSession(ctx, c.xrpcClient)
 		if err != nil {
 			// TODO: how to handle this error?
             logger.Println("RefreshSession error (ServerRefreshSession):", err)
@@ -92,7 +92,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 		Identifier: c.handle,
 		Password:   c.appkey,
 	}
-	session, err := atproto.ServerCreateSession(ctx, c.XrpcClient, sessionCredentials)
+	session, err := atproto.ServerCreateSession(ctx, c.xrpcClient, sessionCredentials)
 	if err != nil {
 		// TODO: how to handle this error? if called as goroutine, it will be lost
 		return fmt.Errorf("Authenticate error (ServerCreateSession): %v", err)

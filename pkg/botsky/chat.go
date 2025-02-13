@@ -3,31 +3,17 @@ package botsky
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/davhofer/indigo/api/chat"
-	"github.com/davhofer/indigo/xrpc"
 )
 
-
-func (c *Client) initChatClient() {
-    client := &xrpc.Client{
-        // TODO: reuse the http client?
-        Client: new(http.Client),
-        Host:   string(ApiChat),
-    }
-    c.ChatClient = client
-    client.SetAuthAsync(c.XrpcClient.GetAuthAsync())
-    cursor := ""
-    c.ChatCursor = cursor
-}
 
 func (c *Client) ChatUpdateActorAccess(ctx context.Context, handleOrDid string, allowAccess bool) error {
     did, err := c.ResolveHandle(ctx, handleOrDid)
     if err != nil {
         return err
     }
-    return chat.ModerationUpdateActorAccess(ctx, c.ChatClient, &chat.ModerationUpdateActorAccess_Input{
+    return chat.ModerationUpdateActorAccess(ctx, c.chatClient, &chat.ModerationUpdateActorAccess_Input{
         Actor: did,
         AllowAccess: allowAccess,
     })
@@ -43,7 +29,7 @@ func (c *Client) ChatConvoGetUnreadMessageCount(ctx context.Context, convoId str
 
 func (c *Client) ChatConvoUpdateRead(ctx context.Context, convoId string, messageId *string) error {
     // messageId is an optional pointe, if only a single message should be updated to read
-    _, err := chat.ConvoUpdateRead(ctx, c.ChatClient, &chat.ConvoUpdateRead_Input{
+    _, err := chat.ConvoUpdateRead(ctx, c.chatClient, &chat.ConvoUpdateRead_Input{
         ConvoId: convoId,
         MessageId: messageId,
     })
@@ -60,7 +46,7 @@ func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []str
         dids = append(dids, did)
     }
 
-    convoOutput, err := chat.ConvoGetConvoForMembers(ctx, c.ChatClient, dids)
+    convoOutput, err := chat.ConvoGetConvoForMembers(ctx, c.chatClient, dids)
     if err != nil {
         return nil, fmt.Errorf("ChatGetConvoForMembers error: %v", err)
     }
@@ -69,7 +55,7 @@ func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []str
 
 func (c *Client) ChatGetConvo(ctx context.Context, convoId string) (*chat.ConvoDefs_ConvoView, error) {
 
-    convoOutput, err := chat.ConvoGetConvo(ctx, c.ChatClient, convoId)
+    convoOutput, err := chat.ConvoGetConvo(ctx, c.chatClient, convoId)
     if err != nil {
         return nil, fmt.Errorf("ChatGetConvo error: %v", err)
     }
@@ -83,7 +69,7 @@ func (c *Client) ChatConvoSendMessage(ctx context.Context, convoId string, messa
             Text: message,
         },
     }
-    msgView, err := chat.ConvoSendMessage(ctx, c.ChatClient, &input)
+    msgView, err := chat.ConvoSendMessage(ctx, c.chatClient, &input)
     if err != nil {
         return "", "", fmt.Errorf("ChatSendMessage error: %v", err)
     }
@@ -97,7 +83,7 @@ func (c *Client) ChatListConvos(ctx context.Context) ([]*chat.ConvoDefs_ConvoVie
 	// iterate until we got all convos
 	for {
 		// query repo for collection with updated cursor
-		output, err := chat.ConvoListConvos(ctx, c.ChatClient, cursor, 100)
+		output, err := chat.ConvoListConvos(ctx, c.chatClient, cursor, 100)
 		if err != nil {
 			return nil, fmt.Errorf("ChatListConvos error: %v", err)
 		}
@@ -127,7 +113,7 @@ func (c *Client) ChatConvoGetMessages(ctx context.Context, convoId string, limit
 	// iterate until we got all records
 	for {
 		// query repo for collection with updated cursor
-		output, err := chat.ConvoGetMessages(ctx, c.ChatClient, convoId, cursor, 100) 
+		output, err := chat.ConvoGetMessages(ctx, c.chatClient, convoId, cursor, 100) 
 		if err != nil {
 			return nil, fmt.Errorf("ChatGetConvoMessages error: %v", err)
 		}
@@ -185,10 +171,10 @@ func (c *Client) ChatSendGroupMessage(ctx context.Context, handlesOrDids []strin
 
 
 func (c *Client) ChatGetRecentLogs(ctx context.Context) ([]*chat.ConvoGetLog_Output_Logs_Elem, error) {
-    logOutput, err := chat.ConvoGetLog(ctx, c.ChatClient, c.ChatCursor)
+    logOutput, err := chat.ConvoGetLog(ctx, c.chatClient, c.chatCursor)
     if err != nil {
         return nil, err
     }
-    c.ChatCursor = *logOutput.Cursor
+    c.chatCursor = *logOutput.Cursor
     return logOutput.Logs, nil
 }

@@ -3,6 +3,7 @@ package botsky
 import (
 	"context"
 	"fmt"
+    "time"
 
 	"github.com/davhofer/indigo/api/bsky"
 )
@@ -15,7 +16,7 @@ func (c *Client) NotifGetNotifications(ctx context.Context, limit int64) ([]*bsk
 	limit = 10
 	priority := false
 	reasons := []string{}
-	output, err := bsky.NotificationListNotifications(ctx, c.XrpcClient, "", limit, priority, reasons, "")
+	output, err := bsky.NotificationListNotifications(ctx, c.xrpcClient, "", limit, priority, reasons, "")
 	if err != nil {
 		return nil, fmt.Errorf("Error when calling ListNotifications: %v", err)
 	}
@@ -29,9 +30,16 @@ func (c *Client) NotifGetNotifications(ctx context.Context, limit int64) ([]*bsk
 func (c *Client) NotifGetUnreadCount(ctx context.Context) (int64, error) {
 	priority := false
 	seenAt := ""
-	output, err := bsky.NotificationGetUnreadCount(ctx, c.XrpcClient, priority, seenAt)
+	output, err := bsky.NotificationGetUnreadCount(ctx, c.xrpcClient, priority, seenAt)
 	if err != nil {
 		return 0, fmt.Errorf("Unable to get notification unread count: %v", err)
 	}
 	return output.Count, nil
+}
+
+func (c *Client) NotifUpdateSeenNow(ctx context.Context) error {
+    updateSeenInput := bsky.NotificationUpdateSeen_Input{
+        SeenAt: time.Now().UTC().Format(time.RFC3339),
+    }
+    return bsky.NotificationUpdateSeen(ctx, c.xrpcClient, &updateSeenInput)
 }

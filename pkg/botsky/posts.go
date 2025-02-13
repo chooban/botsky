@@ -88,10 +88,10 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 
 	post_input := &atproto.RepoCreateRecord_Input{
 		Collection: "app.bsky.feed.repost",
-		Repo:       c.XrpcClient.Auth.Did,
+		Repo:       c.xrpcClient.Auth.Did,
 		Record:     &lexutil.LexiconTypeDecoder{Val: &post},
 	}
-	response, err := atproto.RepoCreateRecord(ctx, c.XrpcClient, post_input)
+	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, post_input)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to repost: %v", err)
 	}
@@ -283,7 +283,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
         value := pb.Text[start:end] 
         // cut off the @
         handle := value[1:]
-        resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, handle)
+        resolveOutput, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
         if err != nil {
             // cannot resolve handle => not a mention
             continue 

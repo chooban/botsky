@@ -19,31 +19,31 @@ const ApiChat = "https://api.bsky.chat"
 
 // TODO: need to wrap requests for rate limiting?
 
-
-// TODO: store ctx directly in client to make api cleaner?
-
-// TODO: can we make xrpc clients private?
-
 type Client struct {
-	XrpcClient *xrpc.Client
+	xrpcClient *xrpc.Client
 	handle     string
 	appkey     string
 	refreshProcessLock sync.Mutex // make sure only one auth refresher runs at a time
-    ChatClient *xrpc.Client // client for accessing chat api
-    ChatCursor string
+    chatClient *xrpc.Client // client for accessing chat api
+    chatCursor string
 }
 
 // Sets up a new client connecting to the given api endpoint
 func NewClient(ctx context.Context, handle string, appkey string) (*Client, error) {
 	client := &Client{
-		XrpcClient: &xrpc.Client{
+		xrpcClient: &xrpc.Client{
 			Client: new(http.Client),
 			Host:   string(ApiEntryway),
 		},
 		handle: handle,
 		appkey: appkey,
+        chatClient: &xrpc.Client{
+        // TODO: reuse the http client?
+        Client: new(http.Client),
+        Host:   string(ApiChat),
+        },
+        chatCursor: "",
 	}
-    client.initChatClient()
 	return client, nil
 }
 
@@ -51,7 +51,7 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 	if strings.HasPrefix(handle, "@") {
 		handle = handle[1:]
 	}
-	output, err := atproto.IdentityResolveHandle(ctx, c.XrpcClient, handle)
+	output, err := atproto.IdentityResolveHandle(ctx, c.xrpcClient, handle)
 	if err != nil {
 		return "", fmt.Errorf("ResolveHandle error: %v", err)
 	}
@@ -59,7 +59,7 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 }
 
 func (c *Client) UpdateProfileDescription(ctx context.Context, description string) error {
-	profileRecord, err := atproto.RepoGetRecord(ctx, c.XrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
+	profileRecord, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
 	if err != nil {
 		return fmt.Errorf("UpdateProfileDescription error (RepoGetRecord): %v", err)
 	}
@@ -91,7 +91,7 @@ func (c *Client) UpdateProfileDescription(ctx context.Context, description strin
 		SwapRecord: profileRecord.Cid,
 	}
 
-	output, err := atproto.RepoPutRecord(ctx, c.XrpcClient, &input)
+	output, err := atproto.RepoPutRecord(ctx, c.xrpcClient, &input)
 	if err != nil {
 		return fmt.Errorf("UpdateProfileDescription error (RepoPutRecord): %v", err)
 	}
@@ -134,7 +134,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 		if j > len(postUris) {
 			j = len(postUris)
 		}
-		results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, postUris[i:j])
+		results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, postUris[i:j])
 		if err != nil {
 			return nil, fmt.Errorf("GetPostViews error (FeedGetPosts): %v", err)
 		}
@@ -174,7 +174,7 @@ func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([
 }
 
 func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) {
-	results, err := bsky.FeedGetPosts(ctx, c.XrpcClient, []string{postUri})
+	results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, []string{postUri})
 	if err != nil {
 		return RichPost{}, fmt.Errorf("GetPost error (FeedGetPosts): %v", err)
 	}
