@@ -37,7 +37,7 @@ func MentionHandler(ctx context.Context, client *botsky.Client, notifications []
             }
 
             textLower := strings.ToLower(post.Text)
-            if (strings.Contains(textLower, "pls") || strings.Contains(textLower, "plz") || strings.Contains(textLower, "please")) && (strings.Contains(textLower, "advice") || strings.Contains(textLower, "help")) {
+            if (strings.Contains(textLower, "advice") || strings.Contains(textLower, "help")) {
 			    pb := botsky.NewPostBuilder("gotcha, sliding into those DMs").ReplyTo(notif.Uri)
 			    _, _, err := client.Post(ctx, pb)
                 if err != nil {
@@ -76,6 +76,12 @@ func MentionHandler(ctx context.Context, client *botsky.Client, notifications []
                 client.ChatSendMessage(ctx, authorDid, "you're welcome")  
                 client.ChatSendMessage(ctx, authorDid, "alright gotta go, the world needs me")  
 
+            } else {
+			    pb := botsky.NewPostBuilder("idk what you want from me...").ReplyTo(notif.Uri)
+			    _, _, err := client.Post(ctx, pb)
+                if err != nil {
+                    fmt.Println(err)
+                }
             }
 		}
 	}
