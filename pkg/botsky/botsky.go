@@ -55,6 +55,9 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 }
 
 func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
+    if strings.HasPrefix(handle, "did:") {
+        return handle, nil
+    }
 	if strings.HasPrefix(handle, "@") {
 		handle = handle[1:]
 	}

@@ -46,6 +46,8 @@ func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []str
         dids = append(dids, did)
     }
 
+    // TODO: does this require a handle?
+    fmt.Println("chat.ConvoGetConvoForMembers", dids)
     convoOutput, err := chat.ConvoGetConvoForMembers(ctx, c.chatClient, dids)
     if err != nil {
         return nil, fmt.Errorf("ChatGetConvoForMembers error: %v", err)
