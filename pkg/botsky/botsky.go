@@ -13,7 +13,17 @@ import (
 	"github.com/davhofer/indigo/xrpc"
 )
 
-const DefaultServer = "https://bsky.social"
+type EndpointUrl string
+
+var ApiEndpoint = struct {
+    Entryway EndpointUrl 
+    Public EndpointUrl 
+    Chat EndpointUrl
+}{
+    Entryway: "https://bsky.social",
+    Public: "https://public.api.bsky.app",
+    Chat: "https://api.bsky.chat",
+}
 
 // TODO: need to wrap requests for rate limiting?
 
@@ -27,12 +37,12 @@ type Client struct {
 	authLock sync.RWMutex
 }
 
-// Sets up a new client connecting to the given server
-func NewClient(ctx context.Context, server string, handle string, appkey string) (*Client, error) {
+// Sets up a new client connecting to the given api endpoint
+func NewClient(ctx context.Context, apiEndpoint EndpointUrl, handle string, appkey string) (*Client, error) {
 	client := &Client{
 		XrpcClient: &xrpc.Client{
 			Client: new(http.Client),
-			Host:   server,
+			Host:   string(apiEndpoint),
 		},
 		handle: handle,
 		appkey: appkey,

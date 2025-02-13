@@ -19,7 +19,7 @@ func createPosts() {
 		return
 	}
 
-	client, err := botsky.NewClient(ctx, botsky.DefaultServer, handle, appkey)
+	client, err := botsky.NewClient(ctx, botsky.ApiEndpoint.Entryway, handle, appkey)
 	if err != nil {
 		fmt.Println(err)
 		return
