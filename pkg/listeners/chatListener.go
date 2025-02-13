@@ -23,14 +23,12 @@ func NewPollingChatListener(ctx context.Context, client *botsky.Client) *Polling
 }
 
 
-const BotDid = "did:plc:a3fiitdzkbaekw34lhfgjzlo"
-
 // example handler that replies to dms by repeating their content
 func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatElems []*chat.ConvoGetLog_Output_Logs_Elem) {
 	// iterate over all notifications
 	for _, elem := range chatElems {
 		// only consider messages from other people
-        if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != BotDid {
+        if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
             convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
             msgText := elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Text
             reply := "You said: '" + msgText + "'"

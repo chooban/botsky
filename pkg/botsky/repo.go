@@ -122,7 +122,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 	}
 	_, err = atproto.RepoDeleteRecord(ctx, c.xrpcClient, &atproto.RepoDeleteRecord_Input{
 		Collection: "app.bsky.feed.post",
-		Repo:       c.handle,
+		Repo:       c.Handle,
 		Rkey:       parsedUri.Rkey,
 	})
 	if err != nil {
@@ -132,7 +132,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 }
 
 func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
-	postUris, err := c.RepoGetRecordUris(ctx, c.handle, "app.bsky.feed.post", -1)
+	postUris, err := c.RepoGetRecordUris(ctx, c.Handle, "app.bsky.feed.post", -1)
 	if err != nil {
 		return fmt.Errorf("RepoDeleteAllPosts error (RepoGetRecordUris): %v", err)
 	}

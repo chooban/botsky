@@ -89,7 +89,7 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 func (c *Client) Authenticate(ctx context.Context) error {
 	// create new session and authenticate with handle and appkey
 	sessionCredentials := &atproto.ServerCreateSession_Input{
-		Identifier: c.handle,
+		Identifier: c.Handle,
 		Password:   c.appkey,
 	}
 	session, err := atproto.ServerCreateSession(ctx, c.xrpcClient, sessionCredentials)

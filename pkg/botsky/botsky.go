@@ -21,7 +21,8 @@ const ApiChat = "https://api.bsky.chat"
 
 type Client struct {
 	xrpcClient *xrpc.Client
-	handle     string
+	Handle     string
+    Did        string
 	appkey     string
 	refreshProcessLock sync.Mutex // make sure only one auth refresher runs at a time
     chatClient *xrpc.Client // client for accessing chat api
@@ -35,7 +36,7 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 			Client: new(http.Client),
 			Host:   string(ApiEntryway),
 		},
-		handle: handle,
+		Handle: handle,
 		appkey: appkey,
         chatClient: &xrpc.Client{
         // TODO: reuse the http client?
@@ -44,6 +45,12 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
         },
         chatCursor: "",
 	}
+    // resolve own handle to get did. don't need to be authenticated to do that
+    clientDid, err := client.ResolveHandle(ctx, handle)
+    if err != nil {
+        return nil, err
+    }
+    client.Did = clientDid
 	return client, nil
 }
 
@@ -59,7 +66,7 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 }
 
 func (c *Client) UpdateProfileDescription(ctx context.Context, description string) error {
-	profileRecord, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", "app.bsky.actor.profile", c.handle, "self")
+	profileRecord, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", "app.bsky.actor.profile", c.Handle, "self")
 	if err != nil {
 		return fmt.Errorf("UpdateProfileDescription error (RepoGetRecord): %v", err)
 	}
@@ -86,7 +93,7 @@ func (c *Client) UpdateProfileDescription(ctx context.Context, description strin
 		Record: &lexutil.LexiconTypeDecoder{
 			Val: &newProfile,
 		},
-		Repo:       c.handle,
+		Repo:       c.Handle,
 		Rkey:       "self",
 		SwapRecord: profileRecord.Cid,
 	}
