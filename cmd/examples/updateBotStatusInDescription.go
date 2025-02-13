@@ -10,7 +10,7 @@ import (
 // runs it for 30 seconds, and in the end changes the status to inactive
 func runBot(handle, appkey, profileDescription string) error {
 	ctx := context.Background()
-	client, err := botsky.NewClient(ctx, botsky.ApiEndpoint.Entryway, handle, appkey)
+	client, err := botsky.NewClient(ctx, handle, appkey)
 	if err != nil {
 		return err
 	}

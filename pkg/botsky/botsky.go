@@ -13,17 +13,9 @@ import (
 	"github.com/davhofer/indigo/xrpc"
 )
 
-type EndpointUrl string
-
-var ApiEndpoint = struct {
-    Entryway EndpointUrl 
-    Public EndpointUrl 
-    Chat EndpointUrl
-}{
-    Entryway: "https://bsky.social",
-    Public: "https://public.api.bsky.app",
-    Chat: "https://api.bsky.chat",
-}
+const ApiEntryway = "https://bsky.social"
+const ApiPublic = "https://public.api.bsky.app"
+const ApiChat = "https://api.bsky.chat"
 
 // TODO: need to wrap requests for rate limiting?
 
@@ -36,11 +28,11 @@ type Client struct {
 }
 
 // Sets up a new client connecting to the given api endpoint
-func NewClient(ctx context.Context, apiEndpoint EndpointUrl, handle string, appkey string) (*Client, error) {
+func NewClient(ctx context.Context, handle string, appkey string) (*Client, error) {
 	client := &Client{
 		XrpcClient: &xrpc.Client{
 			Client: new(http.Client),
-			Host:   string(apiEndpoint),
+			Host:   string(ApiEntryway),
 		},
 		handle: handle,
 		appkey: appkey,
