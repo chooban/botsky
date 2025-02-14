@@ -66,15 +66,21 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 	defer c.refreshProcessLock.Unlock()
 
 	// check that RefreshJWT is still (for some time) valid
-	if tRemaining, _ := getJwtTimeRemaining(c.xrpcClient.Auth.RefreshJwt); tRemaining > 30*time.Second {
+    auth := c.xrpcClient.GetAuthAsync()
+	if tRemaining, _ := getJwtTimeRemaining(auth.RefreshJwt); tRemaining > 30*time.Second {
+        // set access jwt to refresh jwt
+        auth.AccessJwt = auth.RefreshJwt
+        c.xrpcClient.SetAuthAsync(auth)
 		// refresh the session
 		session, err := atproto.ServerRefreshSession(ctx, c.xrpcClient)
-		if err != nil {
-			// TODO: how to handle this error?
+
+		if err != nil { // log error if it happened
             logger.Println("RefreshSession error (ServerRefreshSession):", err)
-		}
-        if err := c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did); err != nil {
+		} else if err := c.UpdateAuth(ctx, session.AccessJwt, session.RefreshJwt, session.Handle, session.Did); err != nil { // otherwise try to update auth
             logger.Println("RefreshSession error (UpdateAuth):", err)
+        } else {
+            // if neither of the above returned an error, we successfully updated auth
+            return
         }
 	}
 
@@ -87,6 +93,8 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 // Authenticates the client with the given credentials
 // Re-authenticating: First try to send RefreshJwt, if that fails create fully new session
 func (c *Client) Authenticate(ctx context.Context) error {
+    // reset auth
+    c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{})
 	// create new session and authenticate with handle and appkey
 	sessionCredentials := &atproto.ServerCreateSession_Input{
 		Identifier: c.Handle,
