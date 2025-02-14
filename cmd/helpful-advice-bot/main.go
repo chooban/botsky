@@ -77,7 +77,7 @@ func MentionHandler(ctx context.Context, client *botsky.Client, notifications []
                 client.ChatSendMessage(ctx, authorDid, "alright gotta go, the world needs me")  
 
             } else {
-			    pb := botsky.NewPostBuilder("idk what you want from me...").ReplyTo(notif.Uri)
+			    pb := botsky.NewPostBuilder("idk what you want from me...\nlet me know if you need some great advice").ReplyTo(notif.Uri)
 			    _, _, err := client.Post(ctx, pb)
                 if err != nil {
                     fmt.Println(err)
