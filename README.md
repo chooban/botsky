@@ -2,7 +2,7 @@
 
 A Bluesky API client in Go. Use Botsky to easily build advanced API integrations and automated bots.
 
-![GitHub last commit](https://img.shields.io/github/last-commit/davhofer/botsky) ![GitHub Repo stars](https://img.shields.io/github/stars/davhofer/botsky)
+<p style="text-align:center;">![GitHub last commit](https://img.shields.io/github/last-commit/davhofer/botsky) ![GitHub Repo stars](https://img.shields.io/github/stars/davhofer/botsky)</p>
 
 ## Features
 
@@ -21,7 +21,7 @@ Complete code and API docs are coming soon.
 
 ### Code examples
 
-For more examples and details, also check out the [examples here](https://github.com/davhofer/botsky/tree/main/cmd/examples).
+For more complete examples and details, also check out the [examples here](https://github.com/davhofer/botsky/tree/main/cmd/examples).
 
 For a full demo bot, check out `cmd/examples/helpful-advice-bot`, running live on Bluesky at [@botsky-bot.bsky.social](https://bsky.app/profile/botsky-bot.bsky.social).
 
@@ -30,13 +30,13 @@ Simplified code snippets (without e.g. error handling) for various use cases bel
 Initialization and auth:
 
 ```go
-    // Get creds from command line
-    handle, appkey, err := botsky.GetCLICredentials()
-    // Or from env variables BOTSKY_HANDLE and BOTSKY_APPKEY
-    handle, appkey, err = botsky.GetEnvCredentials()
-    // Set up a client
-    client, err := botsky.NewClient(ctx, handle, appkey)
-    err = client.Authenticate(ctx)
+// Get creds from command line
+handle, appkey, err := botsky.GetCLICredentials()
+// Or from env variables BOTSKY_HANDLE and BOTSKY_APPKEY
+handle, appkey, err = botsky.GetEnvCredentials()
+// Set up a client
+client, err := botsky.NewClient(ctx, handle, appkey)
+err = client.Authenticate(ctx)
 ```
 
 Creating posts:
@@ -72,14 +72,14 @@ Create NotificationListener and reply to mentions:
 
 ```go
 func ExampleMentionHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
-	// iterate over all notifications
-	for _, notif := range notifications {
-		// only consider mentions
-		if notif.Reason == "mention" {
-			pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
-			cid, uri, err := client.Post(ctx, pb)
-		}
-	}
+    // iterate over all notifications
+    for _, notif := range notifications {
+        // only consider mentions
+        if notif.Reason == "mention" {
+            pb := NewPostBuilder("hello :)").ReplyTo(notif.Uri)
+            cid, uri, err := client.Post(ctx, pb)
+        }
+    }
 }
 func main () {
     // ...
@@ -96,9 +96,9 @@ Create ChatListener and reply to messages:
 
 ```go
 func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatElems []*chat.ConvoGetLog_Output_Logs_Elem) {
-	// iterate over all new chat log elements
-	for _, elem := range chatElems {
-		// only consider messages from other people
+    // iterate over all new chat log elements
+    for _, elem := range chatElems {
+        // only consider messages from other people
         if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
             // reply by quoting what they said
             convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
@@ -106,15 +106,16 @@ func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatE
             reply := "You said: '" + msgText + "'"
             id, rev, err := client.ChatConvoSendMessage(ctx, convoId, reply)
         }
-	}
+    }
 }
 func main() {
     // ...
-	listener := listeners.NewPollingChatListener(ctx, client)
+    listener := listeners.NewPollingChatListener(ctx, client)
     err := listener.RegisterHandler("replyToChatMsgs", ExampleChatMessageHandler)
-	listener.Start()
-	botsky.WaitUntilCancel()
-	listener.Stop()
+    listener.Start()
+    botsky.WaitUntilCancel()
+    listener.Stop()
+}
 ```
 
 ## Contributing
@@ -148,7 +149,7 @@ This library is partially inspired by and adapted from
 
 The main license for all original work is the MIT license. However, certain parts (adapted from https://github.com/danrusei/gobot-bsky) are published under the Apache 2.0 license.
 
-## TODO/Ideas
+### TODO/Ideas
 
 - code and api documentation, detailed features overview
 - get user profile information, social graph interactions, following & followers, etc.
