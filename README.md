@@ -2,7 +2,7 @@
 
 A Bluesky API client in Go. Use Botsky to easily build advanced API integrations and automated bots.
 
-<p style="text-align:center;">![GitHub last commit](https://img.shields.io/github/last-commit/davhofer/botsky) ![GitHub Repo stars](https://img.shields.io/github/stars/davhofer/botsky)</p>
+![GitHub last commit](https://img.shields.io/github/last-commit/davhofer/botsky) ![GitHub Repo stars](https://img.shields.io/github/stars/davhofer/botsky)
 
 ## Features
 
