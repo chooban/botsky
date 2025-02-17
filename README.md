@@ -152,6 +152,7 @@ The main license for all original work is the MIT license. However, certain part
 ### TODO/Ideas
 
 - code and api documentation, detailed features overview
+- emojis
 - get user profile information, social graph interactions, following & followers, etc.
 - demo bot with command/control interface through chat. could set up bot command listeners with authorized users, post creation through chat, etc.
 - should we support PDS admin/server/identity functionality? i.e. com.atproto.admin, com.atproto.identity, com.atproto.repo (latter is partially supported)
