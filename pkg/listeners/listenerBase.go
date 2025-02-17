@@ -1,7 +1,7 @@
 package listeners
 
 import (
-    "botsky/pkg/botsky"
+    "github.com/davhofer/botsky/pkg/botsky"
 	"context"
 	"fmt"
 	"sync"

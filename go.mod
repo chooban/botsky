@@ -1,4 +1,4 @@
-module botsky
+module github.com/davhofer/botsky
 
 go 1.23.4
 

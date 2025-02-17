@@ -1,8 +1,8 @@
 package main
 
 import (
-	"botsky/pkg/botsky"
-	"botsky/pkg/listeners"
+	"github.com/davhofer/botsky/pkg/botsky"
+	"github.com/davhofer/botsky/pkg/listeners"
 	"fmt"
 	"strings"
 
