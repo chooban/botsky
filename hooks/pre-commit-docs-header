@@ -1,0 +1,30 @@
+#!/bin/bash
+
+SOURCE_DIR="pkg/"
+OUTPUT_FILE="doc-header.txt"
+
+# Check if source directory exists
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "Error: Directory $SOURCE_DIR does not exist"
+    exit 1
+fi
+
+# Create or truncate the output file
+echo "# Packages" > "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
+# Find all directories, exclude hidden directories and common build/dependency directories
+find "$SOURCE_DIR" -mindepth 1 -maxdepth 1 -type d \
+    | while read -r dir; do
+        # Extract just the directory name
+        dirname=$(basename "$dir")
+        # Add it to the file with markdown list format
+        echo "- [$dirname](#$dirname)" >> "$OUTPUT_FILE"
+    done
+
+# Add separator at the end
+echo "" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+
+echo "Package list has been generated in $OUTPUT_FILE"
+exit 0

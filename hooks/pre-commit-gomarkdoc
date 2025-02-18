@@ -3,7 +3,7 @@
 # hooks/pre-commit-gomarkdoc
 
 echo "Running gomarkdoc documentation generation..."
-gomarkdoc --output docs.md ./pkg/...
+gomarkdoc --header-file doc-header.txt --output docs.md ./pkg/...
 
 git add docs.md
 

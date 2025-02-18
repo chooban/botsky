@@ -7,6 +7,11 @@ repos:
         entry: hooks/pre-commit-gofmt
         language: script
         pass_filenames: false
+      - id: docheader
+        name: Prepare Header for Docs
+        entry: hooks/pre-commit-docs-header
+        language: script
+        pass_filenames: false
       - id: gomarkdoc
         name: Generate Go Documentation
         entry: hooks/pre-commit-gomarkdoc
