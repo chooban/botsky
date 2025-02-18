@@ -23,13 +23,13 @@ const ApiChat = "https://api.bsky.chat"
 //
 // Wraps an XRPC client for API calls and a second one for handling chat/DMs
 type Client struct {
-	xrpcClient *xrpc.Client
-	Handle     string
-    Did        string
-	appkey     string
-	refreshProcessLock sync.Mutex // make sure only one auth refresher runs at a time
-    chatClient *xrpc.Client // client for accessing chat api
-    chatCursor string
+	xrpcClient         *xrpc.Client
+	Handle             string
+	Did                string
+	appkey             string
+	refreshProcessLock sync.Mutex   // make sure only one auth refresher runs at a time
+	chatClient         *xrpc.Client // client for accessing chat api
+	chatCursor         string
 }
 
 // Sets up a new client (not yet authenticated)
@@ -41,19 +41,19 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 		},
 		Handle: handle,
 		appkey: appkey,
-        chatClient: &xrpc.Client{
-        // TODO: reuse the http client?
-        Client: new(http.Client),
-        Host:   string(ApiChat),
-        },
-        chatCursor: "",
+		chatClient: &xrpc.Client{
+			// TODO: reuse the http client?
+			Client: new(http.Client),
+			Host:   string(ApiChat),
+		},
+		chatCursor: "",
 	}
-    // resolve own handle to get did. don't need to be authenticated to do that
-    clientDid, err := client.ResolveHandle(ctx, handle)
-    if err != nil {
-        return nil, err
-    }
-    client.Did = clientDid
+	// resolve own handle to get did. don't need to be authenticated to do that
+	clientDid, err := client.ResolveHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+	client.Did = clientDid
 	return client, nil
 }
 
@@ -61,9 +61,9 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 //
 // If called on a DID, simply returns it
 func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
-    if strings.HasPrefix(handle, "did:") {
-        return handle, nil
-    }
+	if strings.HasPrefix(handle, "did:") {
+		return handle, nil
+	}
 	if strings.HasPrefix(handle, "@") {
 		handle = handle[1:]
 	}
@@ -162,7 +162,7 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 }
 
 // Load enriched posts for repo/user.
-// 
+//
 // Set limit = -1 in order to get all posts.
 func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
 	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/davhofer/botsky/pkg/botsky"
-	"github.com/davhofer/botsky/pkg/listeners"
 	"context"
 	"fmt"
+	"github.com/davhofer/botsky/pkg/botsky"
+	"github.com/davhofer/botsky/pkg/listeners"
 
 	"github.com/davhofer/indigo/api/bsky"
 )

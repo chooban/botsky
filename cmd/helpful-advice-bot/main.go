@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/davhofer/botsky/pkg/botsky"
 	"github.com/davhofer/botsky/pkg/listeners"
-	"fmt"
 	"strings"
 
 	"context"
@@ -16,11 +16,11 @@ import (
 )
 
 type Slip struct {
-    Id int `json:"id"`
-    Advice string `json:"advice"`
+	Id     int    `json:"id"`
+	Advice string `json:"advice"`
 }
 type Response struct {
-    Slip Slip `json:"slip"`
+	Slip Slip `json:"slip"`
 }
 
 func MentionHandler(ctx context.Context, client *botsky.Client, notifications []*bsky.NotificationListNotifications_Notification) {
@@ -29,99 +29,100 @@ func MentionHandler(ctx context.Context, client *botsky.Client, notifications []
 	for _, notif := range notifications {
 		// only consider mentions
 		if notif.Reason == "mention" {
-            fmt.Println("mention received")
+			fmt.Println("mention received")
 			// Uri is the mentioning post
-            post, err := client.GetPost(ctx, notif.Uri)
-            if err != nil {
-                fmt.Println(err)
-            }
+			post, err := client.GetPost(ctx, notif.Uri)
+			if err != nil {
+				fmt.Println(err)
+			}
 
-            textLower := strings.ToLower(post.Text)
-            if (strings.Contains(textLower, "advice") || strings.Contains(textLower, "help")) {
-			    pb := botsky.NewPostBuilder("gotcha, sliding into those DMs").ReplyTo(notif.Uri)
-			    _, _, err := client.Post(ctx, pb)
-                if err != nil {
-                    fmt.Println(err)
-                    return
-                }
+			textLower := strings.ToLower(post.Text)
+			if strings.Contains(textLower, "advice") || strings.Contains(textLower, "help") {
+				pb := botsky.NewPostBuilder("gotcha, sliding into those DMs").ReplyTo(notif.Uri)
+				_, _, err := client.Post(ctx, pb)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
 
-                // slide into DMs
-                authorDid := notif.Author.Did
+				// slide into DMs
+				authorDid := notif.Author.Did
 
-                if _,_, err := client.ChatSendMessage(ctx, authorDid, "you ready for some great advice?"); err != nil {
-                    fmt.Println("chat error", err)
-                    fmt.Println(err.Error())
+				if _, _, err := client.ChatSendMessage(ctx, authorDid, "you ready for some great advice?"); err != nil {
+					fmt.Println("chat error", err)
+					fmt.Println(err.Error())
 
-                    if strings.Contains(err.Error(), "recipient requires incoming messages to come from someone they follow") {
-                        pb := botsky.NewPostBuilder("you gotta let me message you, either follow me or open up DMs in your chat settings, then try again").ReplyTo(notif.Uri)
-                        client.Post(ctx, pb)
+					if strings.Contains(err.Error(), "recipient requires incoming messages to come from someone they follow") {
+						pb := botsky.NewPostBuilder("you gotta let me message you, either follow me or open up DMs in your chat settings, then try again").ReplyTo(notif.Uri)
+						client.Post(ctx, pb)
 
-                    } else if strings.Contains(err.Error(), "recipient has disabled incoming messages") {
-                        pb := botsky.NewPostBuilder("you gotta let me message you, change your chat settings and maybe follow me, then try again").ReplyTo(notif.Uri)
-                        client.Post(ctx, pb)
-                    }
-                    return
-                }
+					} else if strings.Contains(err.Error(), "recipient has disabled incoming messages") {
+						pb := botsky.NewPostBuilder("you gotta let me message you, change your chat settings and maybe follow me, then try again").ReplyTo(notif.Uri)
+						client.Post(ctx, pb)
+					}
+					return
+				}
 
-                advice, err := getAdvice()
-                if err != nil {
-                    fmt.Println(err)
-                    return
-                }
-                _,_, err = client.ChatSendMessage(ctx, authorDid, "As my mama used to say, " + strings.ToLower(advice))  
-                if err != nil {
-                    fmt.Println(err)
-                    return
-                }
-                client.ChatSendMessage(ctx, authorDid, "you're welcome")  
-                client.ChatSendMessage(ctx, authorDid, "alright gotta go, the world needs me")  
+				advice, err := getAdvice()
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				_, _, err = client.ChatSendMessage(ctx, authorDid, "As my mama used to say, "+strings.ToLower(advice))
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				client.ChatSendMessage(ctx, authorDid, "you're welcome")
+				client.ChatSendMessage(ctx, authorDid, "alright gotta go, the world needs me")
 
-            } else {
-			    pb := botsky.NewPostBuilder("idk what you want from me...\nlet me know if you need some great advice").ReplyTo(notif.Uri)
-			    _, _, err := client.Post(ctx, pb)
-                if err != nil {
-                    fmt.Println(err)
-                }
-            }
+			} else {
+				pb := botsky.NewPostBuilder("idk what you want from me...\nlet me know if you need some great advice").ReplyTo(notif.Uri)
+				_, _, err := client.Post(ctx, pb)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
 		}
 	}
 }
 
 func ChatMessageHandler(ctx context.Context, client *botsky.Client, chatElems []*chat.ConvoGetLog_Output_Logs_Elem) {
 	for _, elem := range chatElems {
-        if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
-            convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
-            reply := "sorry I'm way too busy for you right now"
-            if _, _, err := client.ChatConvoSendMessage(ctx, convoId, reply); err != nil {
-                fmt.Println("Error:", err)
-                continue
-            }
-        }
+		if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
+			convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
+			reply := "sorry I'm way too busy for you right now"
+			if _, _, err := client.ChatConvoSendMessage(ctx, convoId, reply); err != nil {
+				fmt.Println("Error:", err)
+				continue
+			}
+		}
 	}
 }
 
 func getAdvice() (string, error) {
-    // TODO: just download all of them
-    // 1 - 224
-    id := rand.IntN(224)+1
-    url := fmt.Sprintf("https://api.adviceslip.com/advice/%d", id)
-    resp, err := http.Get(url)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	// TODO: just download all of them
+	// 1 - 224
+	id := rand.IntN(224) + 1
+	url := fmt.Sprintf("https://api.adviceslip.com/advice/%d", id)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return "", fmt.Errorf("Error: HTTP Status code != 200: %s", resp.Status)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Error: HTTP Status code != 200: %s", resp.Status)
+	}
 
-    var r Response
-    if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-        return "", err
-    }
-    fmt.Println("advice:", r.Slip.Advice)
-    return r.Slip.Advice, nil
+	var r Response
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return "", err
+	}
+	fmt.Println("advice:", r.Slip.Advice)
+	return r.Slip.Advice, nil
 }
+
 // TBD
 func main() {
 
@@ -165,7 +166,7 @@ func main() {
 	}
 
 	mentionListener.Start()
-    chatListener.Start()
+	chatListener.Start()
 
 	botsky.WaitUntilCancel()
 

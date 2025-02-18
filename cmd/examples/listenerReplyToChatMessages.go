@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/davhofer/botsky/pkg/botsky"
-	"github.com/davhofer/botsky/pkg/listeners"
 	"context"
 	"fmt"
+	"github.com/davhofer/botsky/pkg/botsky"
+	"github.com/davhofer/botsky/pkg/listeners"
 
 	"github.com/davhofer/indigo/api/chat"
 )
@@ -15,15 +15,15 @@ func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatE
 	// iterate over all new chat logs
 	for _, elem := range chatElems {
 		// only consider messages from other people
-        if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
-            // reply by quoting what they said
-            convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
-            msgText := elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Text
-            reply := "You said: '" + msgText + "'"
-            if _, _, err := client.ChatConvoSendMessage(ctx, convoId, reply); err != nil {
-                fmt.Println("Error:", err)
-            }
-        }
+		if elem.ConvoDefs_LogCreateMessage != nil && elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Sender.Did != client.Did {
+			// reply by quoting what they said
+			convoId := elem.ConvoDefs_LogCreateMessage.ConvoId
+			msgText := elem.ConvoDefs_LogCreateMessage.Message.ConvoDefs_MessageView.Text
+			reply := "You said: '" + msgText + "'"
+			if _, _, err := client.ChatConvoSendMessage(ctx, convoId, reply); err != nil {
+				fmt.Println("Error:", err)
+			}
+		}
 	}
 }
 
@@ -42,7 +42,7 @@ func listenerReplyToChatMessages() {
 	client, err := botsky.NewClient(ctx, handle, appkey)
 	if err != nil {
 		fmt.Println(err)
-        return
+		return
 	}
 
 	err = client.Authenticate(ctx)

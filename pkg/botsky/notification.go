@@ -3,13 +3,12 @@ package botsky
 import (
 	"context"
 	"fmt"
-    "time"
+	"time"
 
 	"github.com/davhofer/indigo/api/bsky"
 )
 
 // TODO: chekc that all functions with cursors that get lists/collections have the abilitiy to iterate and get more
-
 
 // Get the most recent notifications (doesn't include DMs!).
 //
@@ -44,8 +43,8 @@ func (c *Client) NotifGetUnreadCount(ctx context.Context) (int64, error) {
 
 // Update all unseen notifications to seen.
 func (c *Client) NotifUpdateSeen(ctx context.Context) error {
-    updateSeenInput := bsky.NotificationUpdateSeen_Input{
-        SeenAt: time.Now().UTC().Format(time.RFC3339),
-    }
-    return bsky.NotificationUpdateSeen(ctx, c.xrpcClient, &updateSeenInput)
+	updateSeenInput := bsky.NotificationUpdateSeen_Input{
+		SeenAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	return bsky.NotificationUpdateSeen(ctx, c.xrpcClient, &updateSeenInput)
 }

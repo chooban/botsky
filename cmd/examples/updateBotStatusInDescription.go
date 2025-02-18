@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/davhofer/botsky/pkg/botsky"
 	"context"
 	"fmt"
+	"github.com/davhofer/botsky/pkg/botsky"
 )
 
 // This function starts the bot, changes the status in the profile description to active,

@@ -1,9 +1,9 @@
 package listeners
 
 import (
-    "github.com/davhofer/botsky/pkg/botsky"
 	"context"
 	"fmt"
+	"github.com/davhofer/botsky/pkg/botsky"
 	"sync"
 	"time"
 )
@@ -13,7 +13,7 @@ type Handler[EventT any] func(context.Context, *botsky.Client, []*EventT)
 
 // Generic event listener.
 type Listener[EventT any] struct {
-    Name            string
+	Name            string
 	Client          *botsky.Client
 	ctx             context.Context
 	Active          bool
@@ -21,29 +21,29 @@ type Listener[EventT any] struct {
 	stopSignal      chan bool
 	PollingInterval time.Duration
 	mutex           sync.Mutex
-    pollEventsFunc func(context.Context, *botsky.Client) ([]*EventT, error) // gets called every PollingInterval seconds to get a list of events which will then be passed to the handlers 
+	pollEventsFunc  func(context.Context, *botsky.Client) ([]*EventT, error) // gets called every PollingInterval seconds to get a list of events which will then be passed to the handlers
 }
 
 // Creates a new listener. The pollEvents argument is a function that gets called in order to fetch the newest set of events to be handled.
 func NewListener[EventT any](ctx context.Context, client *botsky.Client, name string, pollEvents func(context.Context, *botsky.Client) ([]*EventT, error)) *Listener[EventT] {
-    if name == "" {
-        name = "Listener"
-    }
+	if name == "" {
+		name = "Listener"
+	}
 	return &Listener[EventT]{
-        Name:            name,
+		Name:            name,
 		Client:          client,
 		ctx:             ctx,
 		Active:          false,
 		Handlers:        make(map[string]Handler[EventT]),
 		stopSignal:      make(chan bool, 1),
 		PollingInterval: time.Duration(time.Second * 5), // Default polling interval: 5s
-        pollEventsFunc:  pollEvents,
+		pollEventsFunc:  pollEvents,
 	}
 }
 
 // Set how frequently the listener polls for new events.
 func (l *Listener[EventT]) SetPollingInterval(seconds uint) {
-    // set to default
+	// set to default
 	if seconds == 0 {
 		seconds = 5
 	}
@@ -58,7 +58,7 @@ func (l *Listener[EventT]) SetPollingInterval(seconds uint) {
 	}
 }
 
-// Try to register a new event handler. The id must be unique. 
+// Try to register a new event handler. The id must be unique.
 //
 // Every registered event handler gets called on the full list of polled events.
 func (l *Listener[EventT]) RegisterHandler(id string, handler Handler[EventT]) error {
@@ -112,17 +112,17 @@ func (l *Listener[EventT]) listen() {
 			return
 		case <-ticker.C:
 
-            events, err := l.pollEventsFunc(l.ctx, l.Client)
-            if err != nil {
-                // TODO: logging/error handling...
-                fmt.Println(l.Name, "pollAndHandle error:", err)
-                continue
-            }
+			events, err := l.pollEventsFunc(l.ctx, l.Client)
+			if err != nil {
+				// TODO: logging/error handling...
+				fmt.Println(l.Name, "pollAndHandle error:", err)
+				continue
+			}
 
-            if len(events) == 0 {
-                continue
-            }
-            
+			if len(events) == 0 {
+				continue
+			}
+
 			for id, handler := range l.Handlers {
 				// pass in the associated id with the context
 				go handler(context.WithValue(l.ctx, "id", id), l.Client, events)
@@ -131,7 +131,6 @@ func (l *Listener[EventT]) listen() {
 		}
 	}
 }
-
 
 /*
 handler functions can be closures, to include e.g. pointers to containers for storing results, channels, the client, etc. to handlers
@@ -147,4 +146,3 @@ OnLike() {}
 OnReply() {}
 etc.
 */
-

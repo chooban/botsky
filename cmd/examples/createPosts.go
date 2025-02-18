@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/davhofer/botsky/pkg/botsky"
 	"context"
 	"fmt"
+	"github.com/davhofer/botsky/pkg/botsky"
 )
 
 func createPosts() {
@@ -71,7 +71,7 @@ func createPosts() {
 	botsky.Sleep(2)
 
 	// reply to the previous post
-    pb = botsky.NewPostBuilder("this is a reply. also, look at this link: https://google.com").ReplyTo(uri)
+	pb = botsky.NewPostBuilder("this is a reply. also, look at this link: https://google.com").ReplyTo(uri)
 	cid, uri, err = client.Post(ctx, pb)
 	if err != nil {
 		fmt.Println("Error:", err)
