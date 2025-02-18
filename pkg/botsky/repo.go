@@ -91,7 +91,7 @@ func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, coll
 //
 // E.g. var post bsky.FeedPost;
 // RepoGetRecordAsType(ctx, postUri, &feedPost)
-func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resultPointer CBORUnmarshaler) error {
+func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resultPointer cborUnmarshaler) error {
 	parsedUri, err := util.ParseAtUri(recordUri)
 	if err != nil {
 		return fmt.Errorf("RepoGetCidOfRecord error (ParseAtUri): %v", err)
@@ -160,7 +160,7 @@ func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (*lexutil.LexBlob, error) {
+func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (*lexutil.LexBlob, error) {
 
 	getImage, err := getImageAsBuffer(image.Uri.String())
 	if err != nil {
@@ -186,7 +186,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImages(ctx context.Context, images []ImageSourceParsed) ([]lexutil.LexBlob, error) {
+func (c *Client) RepoUploadImages(ctx context.Context, images []imageSourceParsed) ([]lexutil.LexBlob, error) {
 
 	blobs := make([]lexutil.LexBlob, 0, len(images))
 

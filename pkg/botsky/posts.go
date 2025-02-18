@@ -18,12 +18,12 @@ import (
 
 // TODO: embed videos
 
-type Facet_Type int
+type facetType int
 
 const (
-	Facet_Link Facet_Type = iota + 1
-	Facet_Mention
-	Facet_Tag
+	facetTypeLink facetType = iota + 1
+	facetTypeMention
+	facetTypeTag
 )
 
 // should match domain names, which are used for handles
@@ -31,42 +31,45 @@ const domainRegex = `[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-
 
 // Helper structs
 
+// Represents a hyperlink and the corresponding display text.
 type InlineLink struct {
 	Text string // a substring of the post text which will be clickable as a link
 	Url  string // the link url
 }
 
-type RecordRef struct {
+// Represents an image with alt text and its location (web url or local path)
+type ImageSource struct {
+	Alt string
+	Uri string
+}
+
+type recordRef struct {
 	Cid string
 	Uri string
 }
 
-type Embed struct {
-	Link           Link
-	Images         []ImageSourceParsed
+type embed struct {
+	Link           embedLink
+	Images         []imageSourceParsed
 	UploadedImages []lexutil.LexBlob
-	Record         RecordRef
+	Record         recordRef
 }
 
-type ReplyReference struct {
+type replyReference struct {
 	Uri     string
 	Cid     string
 	RootUri string
 	RootCid string
 }
 
-type Link struct {
+type embedLink struct {
 	Title       string
 	Uri         url.URL
 	Description string
 	Thumb       lexutil.LexBlob
 }
 
-type ImageSource struct {
-	Alt string
-	Uri string
-}
-type ImageSourceParsed struct {
+type imageSourceParsed struct {
 	Alt string
 	Uri url.URL
 }
@@ -182,20 +185,20 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 	if nEmbeds > 1 {
 		return "", "", fmt.Errorf("Can only include one type of Embed (images, embedded link, quoted post) in posts.")
 	}
-	var embed Embed
+	var embed embed
 
 	if len(pb.Languages) == 0 {
 		pb.Languages = []string{"en"}
 	}
 	// prepare embeds
 	if pb.EmbedImages != nil {
-		var parsedImages []ImageSourceParsed
+		var parsedImages []imageSourceParsed
 		for _, img := range pb.EmbedImages {
 			parsedUrl, err := url.Parse(img.Uri)
 			if err != nil {
 				return "", "", fmt.Errorf("Unable to parse image source uri: %s", img.Uri)
 			} else {
-				parsedImages = append(parsedImages, ImageSourceParsed{Alt: img.Alt, Uri: *parsedUrl})
+				parsedImages = append(parsedImages, imageSourceParsed{Alt: img.Alt, Uri: *parsedUrl})
 			}
 		}
 		if len(parsedImages) > 0 {
@@ -230,7 +233,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			if err != nil {
 				return "", "", fmt.Errorf("Error when parsing image url: %v", err)
 			}
-			previewImg := ImageSourceParsed{
+			previewImg := imageSourceParsed{
 				Uri: *parsedImageUrl,
 				Alt: alt,
 			}
@@ -258,7 +261,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 		embed.Record.Uri = pb.EmbedPostQuote
 	}
 
-	var replyReference ReplyReference
+	var replyRef replyReference
 	if pb.ReplyUri != "" {
 		replyPost, cid, err := c.RepoGetPostAndCid(ctx, pb.ReplyUri)
 		if err != nil {
@@ -274,7 +277,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			rootUri = pb.ReplyUri
 		}
 
-		replyReference = ReplyReference{
+		replyRef = replyReference{
 			Uri:     pb.ReplyUri,
 			Cid:     cid,
 			RootUri: rootUri,
@@ -318,7 +321,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 	}
 
 	// Build post
-	post, err := buildPost(pb, embed, replyReference, mentionMatches)
+	post, err := buildPost(pb, embed, replyRef, mentionMatches)
 	if err != nil {
 		return "", "", fmt.Errorf("Error when building post: %v", err)
 	}
@@ -328,7 +331,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 }
 
 // Build the post
-func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, mentionMatches []struct {
+func buildPost(pb *PostBuilder, embed embed, replyRef replyReference, mentionMatches []struct {
 	Value string
 	Start int
 	End   int
@@ -352,7 +355,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 		features := []*bsky.RichtextFacet_Features_Elem{}
 		feature := &bsky.RichtextFacet_Features_Elem{
 			RichtextFacet_Mention: &bsky.RichtextFacet_Mention{
-				LexiconTypeID: Facet_Mention.String(),
+				LexiconTypeID: facetTypeMention.String(),
 				Did:           match.Did,
 			},
 		}
@@ -374,7 +377,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 		features := []*bsky.RichtextFacet_Features_Elem{}
 		feature := &bsky.RichtextFacet_Features_Elem{
 			RichtextFacet_Link: &bsky.RichtextFacet_Link{
-				LexiconTypeID: Facet_Link.String(),
+				LexiconTypeID: facetTypeLink.String(),
 				Uri:           link.Url,
 			},
 		}
@@ -383,7 +386,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 
 		ByteStart, ByteEnd, err := findSubstring(post.Text, link.Text)
 		if err != nil {
-			return post, fmt.Errorf("Unable to find the substring: %v , %v", Facet_Link, err)
+			return post, fmt.Errorf("Unable to find the substring: %v , %v", facetTypeLink, err)
 		}
 
 		index := &bsky.RichtextFacet_ByteSlice{
@@ -403,7 +406,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 		features := []*bsky.RichtextFacet_Features_Elem{}
 		feature := &bsky.RichtextFacet_Features_Elem{
 			RichtextFacet_Link: &bsky.RichtextFacet_Link{
-				LexiconTypeID: Facet_Link.String(),
+				LexiconTypeID: facetTypeLink.String(),
 				Uri:           match.Value,
 			},
 		}
@@ -430,7 +433,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 
 		feature = &bsky.RichtextFacet_Features_Elem{
 			RichtextFacet_Tag: &bsky.RichtextFacet_Tag{
-				LexiconTypeID: Facet_Tag.String(),
+				LexiconTypeID: facetTypeTag.String(),
 				Tag:           stripHashtag(m.Value),
 			},
 		}
@@ -455,7 +458,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 	// Embed Section (either external links or images)
 	// As of now it allows only one Embed type per post:
 	// https://github.com/bluesky-social/indigo/blob/main/api/bsky/feedpost.go
-	if embed.Link != (Link{}) {
+	if embed.Link != (embedLink{}) {
 
 		FeedPost_Embed.EmbedExternal = &bsky.EmbedExternal{
 			LexiconTypeID: "app.bsky.embed.external",
@@ -483,7 +486,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 
 		FeedPost_Embed.EmbedImages = &EmbedImages
 
-	} else if embed.Record != (RecordRef{}) {
+	} else if embed.Record != (recordRef{}) {
 		EmbedRecord := bsky.EmbedRecord{
 			LexiconTypeID: "app.bsky.embed.record",
 			Record: &atproto.RepoStrongRef{
@@ -504,15 +507,15 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 	}
 
 	// set reply
-	if replyReference != (ReplyReference{}) {
+	if replyRef != (replyReference{}) {
 		post.Reply = &bsky.FeedPost_ReplyRef{
 			Parent: &atproto.RepoStrongRef{
-				Uri: replyReference.Uri,
-				Cid: replyReference.Cid,
+				Uri: replyRef.Uri,
+				Cid: replyRef.Cid,
 			},
 			Root: &atproto.RepoStrongRef{
-				Uri: replyReference.RootUri,
-				Cid: replyReference.RootCid,
+				Uri: replyRef.RootUri,
+				Cid: replyRef.RootCid,
 			},
 		}
 	}
@@ -521,13 +524,13 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 }
 
 // String representation of Facets
-func (f Facet_Type) String() string {
+func (f facetType) String() string {
 	switch f {
-	case Facet_Link:
+	case facetTypeLink:
 		return "app.bsky.richtext.facet#link"
-	case Facet_Mention:
+	case facetTypeMention:
 		return "app.bsky.richtext.facet#mention"
-	case Facet_Tag:
+	case facetTypeTag:
 		return "app.bsky.richtext.facet#tag"
 	default:
 		return "Unknown"

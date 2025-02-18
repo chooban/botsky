@@ -7,7 +7,7 @@ import (
 	"github.com/davhofer/indigo/api/chat"
 )
 
-// Instantiation of the (polling) listenerBase for handling chat logs/events.
+// Instantiation of a Listener for handling chat logs/events.
 type PollingChatListener struct {
 	Listener[chat.ConvoGetLog_Output_Logs_Elem]
 }

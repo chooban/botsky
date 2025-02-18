@@ -23,7 +23,7 @@ import (
 
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
-// Sleep for a number of seconds.
+// Convenience function to sleep for a number of seconds.
 func Sleep(seconds int) {
 	time.Sleep(time.Duration(seconds) * time.Second)
 }
@@ -61,7 +61,7 @@ func GetCLICredentials() (string, string, error) {
 	return strings.TrimSpace(handle), strings.TrimSpace(appkey), nil
 }
 
-type CBORUnmarshaler interface {
+type cborUnmarshaler interface {
 	UnmarshalCBOR(io.Reader) error
 }
 
@@ -81,7 +81,7 @@ var post bsky.FeedPost
 
 ```
 */
-func decodeRecordAsLexicon(recordDecoder *lexutil.LexiconTypeDecoder, resultPointer CBORUnmarshaler) error {
+func decodeRecordAsLexicon(recordDecoder *lexutil.LexiconTypeDecoder, resultPointer cborUnmarshaler) error {
 	var buf bytes.Buffer
 
 	if err := recordDecoder.Val.MarshalCBOR(&buf); err != nil {

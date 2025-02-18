@@ -13,7 +13,6 @@ import "github.com/davhofer/botsky/pkg/botsky"
 - [func GetEnvCredentials\(\) \(string, string, error\)](<#GetEnvCredentials>)
 - [func Sleep\(seconds int\)](<#Sleep>)
 - [func WaitUntilCancel\(\)](<#WaitUntilCancel>)
-- [type CBORUnmarshaler](<#CBORUnmarshaler>)
 - [type Client](<#Client>)
   - [func NewClient\(ctx context.Context, handle string, appkey string\) \(\*Client, error\)](<#NewClient>)
   - [func \(c \*Client\) Authenticate\(ctx context.Context\) error](<#Client.Authenticate>)
@@ -41,22 +40,17 @@ import "github.com/davhofer/botsky/pkg/botsky"
   - [func \(c \*Client\) RepoDeletePost\(ctx context.Context, postUri string\) error](<#Client.RepoDeletePost>)
   - [func \(c \*Client\) RepoGetCollections\(ctx context.Context, handleOrDid string\) \(\[\]string, error\)](<#Client.RepoGetCollections>)
   - [func \(c \*Client\) RepoGetPostAndCid\(ctx context.Context, postUri string\) \(bsky.FeedPost, string, error\)](<#Client.RepoGetPostAndCid>)
-  - [func \(c \*Client\) RepoGetRecordAsType\(ctx context.Context, recordUri string, resultPointer CBORUnmarshaler\) error](<#Client.RepoGetRecordAsType>)
+  - [func \(c \*Client\) RepoGetRecordAsType\(ctx context.Context, recordUri string, resultPointer cborUnmarshaler\) error](<#Client.RepoGetRecordAsType>)
   - [func \(c \*Client\) RepoGetRecordUris\(ctx context.Context, handleOrDid string, collection string, limit int\) \(\[\]string, error\)](<#Client.RepoGetRecordUris>)
   - [func \(c \*Client\) RepoGetRecords\(ctx context.Context, handleOrDid string, collection string, limit int\) \(\[\]\*atproto.RepoListRecords\_Record, error\)](<#Client.RepoGetRecords>)
-  - [func \(c \*Client\) RepoUploadImage\(ctx context.Context, image ImageSourceParsed\) \(\*lexutil.LexBlob, error\)](<#Client.RepoUploadImage>)
-  - [func \(c \*Client\) RepoUploadImages\(ctx context.Context, images \[\]ImageSourceParsed\) \(\[\]lexutil.LexBlob, error\)](<#Client.RepoUploadImages>)
+  - [func \(c \*Client\) RepoUploadImage\(ctx context.Context, image imageSourceParsed\) \(\*lexutil.LexBlob, error\)](<#Client.RepoUploadImage>)
+  - [func \(c \*Client\) RepoUploadImages\(ctx context.Context, images \[\]imageSourceParsed\) \(\[\]lexutil.LexBlob, error\)](<#Client.RepoUploadImages>)
   - [func \(c \*Client\) Repost\(ctx context.Context, postUri string\) \(string, string, error\)](<#Client.Repost>)
   - [func \(c \*Client\) ResolveHandle\(ctx context.Context, handle string\) \(string, error\)](<#Client.ResolveHandle>)
   - [func \(c \*Client\) UpdateAuth\(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string\) error](<#Client.UpdateAuth>)
   - [func \(c \*Client\) UpdateProfileDescription\(ctx context.Context, description string\) error](<#Client.UpdateProfileDescription>)
-- [type Embed](<#Embed>)
-- [type Facet\_Type](<#Facet_Type>)
-  - [func \(f Facet\_Type\) String\(\) string](<#Facet_Type.String>)
 - [type ImageSource](<#ImageSource>)
-- [type ImageSourceParsed](<#ImageSourceParsed>)
 - [type InlineLink](<#InlineLink>)
-- [type Link](<#Link>)
 - [type PostBuilder](<#PostBuilder>)
   - [func NewPostBuilder\(text string\) \*PostBuilder](<#NewPostBuilder>)
   - [func \(pb \*PostBuilder\) AddEmbedLink\(link string\) \*PostBuilder](<#PostBuilder.AddEmbedLink>)
@@ -66,8 +60,6 @@ import "github.com/davhofer/botsky/pkg/botsky"
   - [func \(pb \*PostBuilder\) AddQuotedPost\(postUri string\) \*PostBuilder](<#PostBuilder.AddQuotedPost>)
   - [func \(pb \*PostBuilder\) AddTags\(tags \[\]string\) \*PostBuilder](<#PostBuilder.AddTags>)
   - [func \(pb \*PostBuilder\) ReplyTo\(postUri string\) \*PostBuilder](<#PostBuilder.ReplyTo>)
-- [type RecordRef](<#RecordRef>)
-- [type ReplyReference](<#ReplyReference>)
 - [type RichPost](<#RichPost>)
 
 
@@ -118,7 +110,7 @@ Handle: BOTSKY\_HANDLE Appkey/password: BOTSKY\_APPKEY
 func Sleep(seconds int)
 ```
 
-Sleep for a number of seconds.
+Convenience function to sleep for a number of seconds.
 
 <a name="WaitUntilCancel"></a>
 ## func WaitUntilCancel
@@ -128,17 +120,6 @@ func WaitUntilCancel()
 ```
 
 Block until the user sends an interrupt \(Ctrl\+C\). Useful when running a listener and no other foreground process.
-
-<a name="CBORUnmarshaler"></a>
-## type CBORUnmarshaler
-
-
-
-```go
-type CBORUnmarshaler interface {
-    UnmarshalCBOR(io.Reader) error
-}
-```
 
 <a name="Client"></a>
 ## type Client
@@ -405,7 +386,7 @@ Get the FeedPost struct and the post CID given its Uri.
 ### func \(\*Client\) RepoGetRecordAsType
 
 ```go
-func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resultPointer CBORUnmarshaler) error
+func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resultPointer cborUnmarshaler) error
 ```
 
 Get the record at the specified uri and decode as the given result type \(type of \*resultPointer\). Result is stored in the object referenced by resultPointer.
@@ -436,7 +417,7 @@ Get all recors of the specified collection from the given repo.
 ### func \(\*Client\) RepoUploadImage
 
 ```go
-func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (*lexutil.LexBlob, error)
+func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (*lexutil.LexBlob, error)
 ```
 
 Upload a single image to the repo.
@@ -447,7 +428,7 @@ This function has been modified from its original version. Original source: http
 ### func \(\*Client\) RepoUploadImages
 
 ```go
-func (c *Client) RepoUploadImages(ctx context.Context, images []ImageSourceParsed) ([]lexutil.LexBlob, error)
+func (c *Client) RepoUploadImages(ctx context.Context, images []imageSourceParsed) ([]lexutil.LexBlob, error)
 ```
 
 Upload the provided images to the repo.
@@ -494,52 +475,10 @@ func (c *Client) UpdateProfileDescription(ctx context.Context, description strin
 
 Update the users profile description with the given string. All other profile components \(avatar, banner, etc.\) stay the same.
 
-<a name="Embed"></a>
-## type Embed
-
-
-
-```go
-type Embed struct {
-    Link           Link
-    Images         []ImageSourceParsed
-    UploadedImages []lexutil.LexBlob
-    Record         RecordRef
-}
-```
-
-<a name="Facet_Type"></a>
-## type Facet\_Type
-
-
-
-```go
-type Facet_Type int
-```
-
-<a name="Facet_Link"></a>
-
-```go
-const (
-    Facet_Link Facet_Type = iota + 1
-    Facet_Mention
-    Facet_Tag
-)
-```
-
-<a name="Facet_Type.String"></a>
-### func \(Facet\_Type\) String
-
-```go
-func (f Facet_Type) String() string
-```
-
-String representation of Facets
-
 <a name="ImageSource"></a>
 ## type ImageSource
 
-
+Represents an image with alt text and its location \(web url or local path\)
 
 ```go
 type ImageSource struct {
@@ -548,41 +487,15 @@ type ImageSource struct {
 }
 ```
 
-<a name="ImageSourceParsed"></a>
-## type ImageSourceParsed
-
-
-
-```go
-type ImageSourceParsed struct {
-    Alt string
-    Uri url.URL
-}
-```
-
 <a name="InlineLink"></a>
 ## type InlineLink
 
-
+Represents a hyperlink and the corresponding display text.
 
 ```go
 type InlineLink struct {
     Text string // a substring of the post text which will be clickable as a link
     Url  string // the link url
-}
-```
-
-<a name="Link"></a>
-## type Link
-
-
-
-```go
-type Link struct {
-    Title       string
-    Uri         url.URL
-    Description string
-    Thumb       lexutil.LexBlob
 }
 ```
 
@@ -675,32 +588,6 @@ func (pb *PostBuilder) ReplyTo(postUri string) *PostBuilder
 ```
 
 Set the post being built \(PostBuilder\) as a reply to the provided post \(postUri\).
-
-<a name="RecordRef"></a>
-## type RecordRef
-
-
-
-```go
-type RecordRef struct {
-    Cid string
-    Uri string
-}
-```
-
-<a name="ReplyReference"></a>
-## type ReplyReference
-
-
-
-```go
-type ReplyReference struct {
-    Uri     string
-    Cid     string
-    RootUri string
-    RootCid string
-}
-```
 
 <a name="RichPost"></a>
 ## type RichPost
@@ -830,7 +717,7 @@ Stop listening.
 <a name="PollingChatListener"></a>
 ## type PollingChatListener
 
-Instantiation of the \(polling\) listenerBase for handling chat logs/events.
+Instantiation of a Listener for handling chat logs/events.
 
 ```go
 type PollingChatListener struct {
