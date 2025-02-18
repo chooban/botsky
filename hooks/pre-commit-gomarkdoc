@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# hooks/pre-commit-gomarkdoc
+
+echo "Running gomarkdoc documentation generation..."
+gomarkdoc --output docs.md ./pkg/...
+
+git add docs.md
+
+# Return 0 if successful
+exit 0

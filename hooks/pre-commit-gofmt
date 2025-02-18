@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# hooks/pre-commit-gofmt
+
+echo "Running gofmt..."
+go fmt ./...
+
+git add .
+
+# Return 0 if successful
+exit 0
