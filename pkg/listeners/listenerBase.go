@@ -8,8 +8,10 @@ import (
 	"time"
 )
 
+// Generic event handler class for the listener.
 type Handler[EventT any] func(context.Context, *botsky.Client, []*EventT)
 
+// Generic event listener.
 type Listener[EventT any] struct {
     Name            string
 	Client          *botsky.Client
@@ -22,6 +24,7 @@ type Listener[EventT any] struct {
     pollEventsFunc func(context.Context, *botsky.Client) ([]*EventT, error) // gets called every PollingInterval seconds to get a list of events which will then be passed to the handlers 
 }
 
+// Creates a new listener. The pollEvents argument is a function that gets called in order to fetch the newest set of events to be handled.
 func NewListener[EventT any](ctx context.Context, client *botsky.Client, name string, pollEvents func(context.Context, *botsky.Client) ([]*EventT, error)) *Listener[EventT] {
     if name == "" {
         name = "Listener"
@@ -38,6 +41,7 @@ func NewListener[EventT any](ctx context.Context, client *botsky.Client, name st
 	}
 }
 
+// Set how frequently the listener polls for new events.
 func (l *Listener[EventT]) SetPollingInterval(seconds uint) {
     // set to default
 	if seconds == 0 {
@@ -54,7 +58,9 @@ func (l *Listener[EventT]) SetPollingInterval(seconds uint) {
 	}
 }
 
-// try to register handler, make sure id is unique
+// Try to register a new event handler. The id must be unique. 
+//
+// Every registered event handler gets called on the full list of polled events.
 func (l *Listener[EventT]) RegisterHandler(id string, handler Handler[EventT]) error {
 	if _, exists := l.Handlers[id]; exists {
 		return fmt.Errorf("Handler with id %s already exists.", id)
@@ -62,6 +68,8 @@ func (l *Listener[EventT]) RegisterHandler(id string, handler Handler[EventT]) e
 	l.Handlers[id] = handler
 	return nil
 }
+
+// Deregister (i.e. deactivate) a registered event handler.
 func (l *Listener[EventT]) DeregisterHandler(id string) error {
 	if _, exists := l.Handlers[id]; !exists {
 		return fmt.Errorf("Handler with id %s is not registered.", id)
@@ -70,7 +78,7 @@ func (l *Listener[EventT]) DeregisterHandler(id string) error {
 	return nil
 }
 
-// start listening in the background. this starts a new go routine
+// Start listening (polling) in the background. This starts a new go routine.
 func (l *Listener[EventT]) Start() {
 	if l.Active {
 		fmt.Println(l.Name, "is already active.")
@@ -80,7 +88,7 @@ func (l *Listener[EventT]) Start() {
 	go l.listen()
 }
 
-// stop listening
+// Stop listening.
 func (l *Listener[EventT]) Stop() {
 	if !l.Active {
 		fmt.Println(l.Name, "is already stopped.")
@@ -90,8 +98,8 @@ func (l *Listener[EventT]) Stop() {
 	l.Active = false
 }
 
-// continuous loop that listens and distributes notifications to handlers
-// is run as a goroutine
+// Continuous loop that listens and distributes polled events to handlers.
+// Is run as a goroutine.
 func (l *Listener[EventT]) listen() {
 	ticker := time.NewTicker(l.PollingInterval)
 	fmt.Println(l.Name, "started")

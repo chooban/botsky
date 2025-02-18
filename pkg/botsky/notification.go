@@ -8,8 +8,12 @@ import (
 	"github.com/davhofer/indigo/api/bsky"
 )
 
-// TODO: chekc that all functions with cursers that get lists/collections have the abilitiy to iterate and get more
+// TODO: chekc that all functions with cursors that get lists/collections have the abilitiy to iterate and get more
 
+
+// Get the most recent notifications (doesn't include DMs!).
+//
+// Currently cannot get more than 100 notifications at once.
 func (c *Client) NotifGetNotifications(ctx context.Context, limit int64) ([]*bsky.NotificationListNotifications_Notification, error) {
 	limit = min(100, limit)
 	limit = max(1, limit)
@@ -27,6 +31,7 @@ func (c *Client) NotifGetNotifications(ctx context.Context, limit int64) ([]*bsk
 	return output.Notifications, nil
 }
 
+// Get the number of unread notifications.
 func (c *Client) NotifGetUnreadCount(ctx context.Context) (int64, error) {
 	priority := false
 	seenAt := ""
@@ -37,7 +42,8 @@ func (c *Client) NotifGetUnreadCount(ctx context.Context) (int64, error) {
 	return output.Count, nil
 }
 
-func (c *Client) NotifUpdateSeenNow(ctx context.Context) error {
+// Update all unseen notifications to seen.
+func (c *Client) NotifUpdateSeen(ctx context.Context) error {
     updateSeenInput := bsky.NotificationUpdateSeen_Input{
         SeenAt: time.Now().UTC().Format(time.RFC3339),
     }

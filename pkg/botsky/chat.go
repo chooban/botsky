@@ -7,7 +7,7 @@ import (
 	"github.com/davhofer/indigo/api/chat"
 )
 
-
+// Update for the given account whether it can initiate DMs or not.
 func (c *Client) ChatUpdateActorAccess(ctx context.Context, handleOrDid string, allowAccess bool) error {
     did, err := c.ResolveHandle(ctx, handleOrDid)
     if err != nil {
@@ -19,6 +19,7 @@ func (c *Client) ChatUpdateActorAccess(ctx context.Context, handleOrDid string, 
     })
 }
 
+// Get number of unread messages in the given conversation.
 func (c *Client) ChatConvoGetUnreadMessageCount(ctx context.Context, convoId string) (int64, error) {
     convo, err := c.ChatGetConvo(ctx, convoId)
     if err != nil {
@@ -27,8 +28,9 @@ func (c *Client) ChatConvoGetUnreadMessageCount(ctx context.Context, convoId str
     return convo.UnreadCount, nil
 }
 
+// Set the message to "read" in the given conversation. Set pointer to nil in order to set the status of all messages in the conversation.
 func (c *Client) ChatConvoUpdateRead(ctx context.Context, convoId string, messageId *string) error {
-    // messageId is an optional pointe, if only a single message should be updated to read
+    // messageId is an optional pointer, if only a single message should be updated to read
     _, err := chat.ConvoUpdateRead(ctx, c.chatClient, &chat.ConvoUpdateRead_Input{
         ConvoId: convoId,
         MessageId: messageId,
@@ -36,6 +38,7 @@ func (c *Client) ChatConvoUpdateRead(ctx context.Context, convoId string, messag
     return err
 }
 
+// Get the conversation including exactly the provided accounts, or create a new one if it doesn't exist.
 func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []string) (*chat.ConvoDefs_ConvoView, error) {
     var dids []string
     for _, handleOrDid := range handlesOrDids {
@@ -47,7 +50,6 @@ func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []str
     }
 
     // TODO: does this require a handle?
-    fmt.Println("chat.ConvoGetConvoForMembers", dids)
     convoOutput, err := chat.ConvoGetConvoForMembers(ctx, c.chatClient, dids)
     if err != nil {
         return nil, fmt.Errorf("ChatGetConvoForMembers error: %v", err)
@@ -55,6 +57,7 @@ func (c *Client) ChatGetConvoForMembers(ctx context.Context, handlesOrDids []str
     return convoOutput.Convo, nil
 }
 
+// Get the conversation by id.
 func (c *Client) ChatGetConvo(ctx context.Context, convoId string) (*chat.ConvoDefs_ConvoView, error) {
 
     convoOutput, err := chat.ConvoGetConvo(ctx, c.chatClient, convoId)
@@ -64,6 +67,7 @@ func (c *Client) ChatGetConvo(ctx context.Context, convoId string) (*chat.ConvoD
     return convoOutput.Convo, nil
 }
 
+// Send a text message to the given conversation.
 func (c *Client) ChatConvoSendMessage(ctx context.Context, convoId string, message string) (string, string, error) {
     input := chat.ConvoSendMessage_Input{
         ConvoId: convoId,
@@ -78,6 +82,7 @@ func (c *Client) ChatConvoSendMessage(ctx context.Context, convoId string, messa
     return msgView.Id, msgView.Rev, nil
 }
 
+// List all conversations.
 func (c *Client) ChatListConvos(ctx context.Context) ([]*chat.ConvoDefs_ConvoView, error) {
 	var convos []*chat.ConvoDefs_ConvoView
 	cursor, lastId := "", ""
@@ -107,6 +112,7 @@ func (c *Client) ChatListConvos(ctx context.Context) ([]*chat.ConvoDefs_ConvoVie
 	return convos, nil
 }
 
+// Get all messages in the given conversation.
 func (c *Client) ChatConvoGetMessages(ctx context.Context, convoId string, limit int) ([]*chat.ConvoDefs_MessageView, error) {
 
 	var messages []*chat.ConvoDefs_MessageView
@@ -150,7 +156,7 @@ func (c *Client) ChatConvoGetMessages(ctx context.Context, convoId string, limit
 	return messages[:end], nil
 }
 
-
+// Send a message to the given account. Uses the existing chat with that account if it exists, or creates a new one if it doesn't.
 func (c *Client) ChatSendMessage(ctx context.Context, handleOrDid string, message string) (string, string, error) {
 
     convo, err := c.ChatGetConvoForMembers(ctx, []string{handleOrDid})
@@ -161,6 +167,7 @@ func (c *Client) ChatSendMessage(ctx context.Context, handleOrDid string, messag
     return c.ChatConvoSendMessage(ctx, convo.Id, message)
 }
 
+// Send a group message to the given list of accounts. Uses the existing group chat with these accounts if it exists, or creates a new one if it doesn't.
 func (c *Client) ChatSendGroupMessage(ctx context.Context, handlesOrDids []string, message string) (string, string, error) {
     convo, err := c.ChatGetConvoForMembers(ctx, handlesOrDids)
     if err != nil {
@@ -171,7 +178,7 @@ func (c *Client) ChatSendGroupMessage(ctx context.Context, handlesOrDids []strin
 }
 
 
-
+// Get all chat logs since the last cursor update (maintained internally).
 func (c *Client) ChatGetRecentLogs(ctx context.Context) ([]*chat.ConvoGetLog_Output_Logs_Elem, error) {
     logOutput, err := chat.ConvoGetLog(ctx, c.chatClient, c.chatCursor)
     if err != nil {

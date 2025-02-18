@@ -19,6 +19,9 @@ const ApiChat = "https://api.bsky.chat"
 
 // TODO: need to wrap requests for rate limiting?
 
+// API Client
+//
+// Wraps an XRPC client for API calls and a second one for handling chat/DMs
 type Client struct {
 	xrpcClient *xrpc.Client
 	Handle     string
@@ -29,7 +32,7 @@ type Client struct {
     chatCursor string
 }
 
-// Sets up a new client connecting to the given api endpoint
+// Sets up a new client (not yet authenticated)
 func NewClient(ctx context.Context, handle string, appkey string) (*Client, error) {
 	client := &Client{
 		xrpcClient: &xrpc.Client{
@@ -54,6 +57,9 @@ func NewClient(ctx context.Context, handle string, appkey string) (*Client, erro
 	return client, nil
 }
 
+// Resolve the given handle to a DID
+//
+// If called on a DID, simply returns it
 func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
     if strings.HasPrefix(handle, "did:") {
         return handle, nil
@@ -68,6 +74,7 @@ func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, erro
 	return output.Did, nil
 }
 
+// Update the users profile description with the given string. All other profile components (avatar, banner, etc.) stay the same.
 func (c *Client) UpdateProfileDescription(ctx context.Context, description string) error {
 	profileRecord, err := atproto.RepoGetRecord(ctx, c.xrpcClient, "", "app.bsky.actor.profile", c.Handle, "self")
 	if err != nil {
@@ -75,7 +82,7 @@ func (c *Client) UpdateProfileDescription(ctx context.Context, description strin
 	}
 
 	var actorProfile bsky.ActorProfile
-	if err := DecodeRecordAsLexicon(profileRecord.Value, &actorProfile); err != nil {
+	if err := decodeRecordAsLexicon(profileRecord.Value, &actorProfile); err != nil {
 		return fmt.Errorf("UpdateProfileDescription error (DecodeRecordAsLexicon): %v", err)
 	}
 
@@ -112,9 +119,9 @@ func (c *Client) UpdateProfileDescription(ctx context.Context, description strin
 // get posts from bsky API/AppView ***********************************************************
 
 // TODO: method to get post directly from repo?
+// Note: this fully relies on bsky api to be built
 
 // Enriched post struct, including both the repo's FeedPost as well as bluesky's PostView
-// Note: this fully relies on bsky api to be built
 type RichPost struct {
 	bsky.FeedPost
 
@@ -128,8 +135,9 @@ type RichPost struct {
 	RepostCount int64
 }
 
-// Load bsky postViews from repo/user
-// (This is not related to the number of views on a post)
+// Load Bluesky AppView postViews for the given repo/user.
+//
+// Set limit = -1 in order to get all postViews.
 func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int) ([]*bsky.FeedDefs_PostView, error) {
 	// get all post uris
 	postUris, err := c.RepoGetRecordUris(ctx, handleOrDid, "app.bsky.feed.post", limit)
@@ -153,8 +161,9 @@ func (c *Client) GetPostViews(ctx context.Context, handleOrDid string, limit int
 	return postViews, nil
 }
 
-// TODO: get all posts?
-// Load enriched posts from repo/user
+// Load enriched posts for repo/user.
+// 
+// Set limit = -1 in order to get all posts.
 func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([]*RichPost, error) {
 	postViews, err := c.GetPostViews(ctx, handleOrDid, limit)
 	if err != nil {
@@ -164,7 +173,7 @@ func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([
 	posts := make([]*RichPost, 0, len(postViews))
 	for _, postView := range postViews {
 		var feedPost bsky.FeedPost
-		if err := DecodeRecordAsLexicon(postView.Record, &feedPost); err != nil {
+		if err := decodeRecordAsLexicon(postView.Record, &feedPost); err != nil {
 			return nil, fmt.Errorf("GetPosts error (DecodeRecordAsLexicon): %v", err)
 		}
 		posts = append(posts, &RichPost{
@@ -183,6 +192,7 @@ func (c *Client) GetPosts(ctx context.Context, handleOrDid string, limit int) ([
 	return posts, nil
 }
 
+// Get a single post by uri.
 func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) {
 	results, err := bsky.FeedGetPosts(ctx, c.xrpcClient, []string{postUri})
 	if err != nil {
@@ -194,7 +204,7 @@ func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) 
 	postView := results.Posts[0]
 
 	var feedPost bsky.FeedPost
-	err = DecodeRecordAsLexicon(postView.Record, &feedPost)
+	err = decodeRecordAsLexicon(postView.Record, &feedPost)
 	if err != nil {
 		return RichPost{}, fmt.Errorf("GetPost error (DecodeRecordAsLexicon): %v", err)
 	}

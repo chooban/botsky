@@ -20,6 +20,7 @@ import (
 // TODO: functions to get likes, follows, followers, posts, etc.
 // use curser to go through all pages
 
+// Get all collections available on the repo.
 func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]string, error) {
 	output, err := atproto.RepoDescribeRepo(ctx, c.xrpcClient, handleOrDid)
 	if err != nil {
@@ -28,6 +29,7 @@ func (c *Client) RepoGetCollections(ctx context.Context, handleOrDid string) ([]
 	return output.Collections, nil
 }
 
+// Get all recors of the specified collection from the given repo.
 func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collection string, limit int) ([]*atproto.RepoListRecords_Record, error) {
 
 	var records []*atproto.RepoListRecords_Record
@@ -69,6 +71,9 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 	return records[:end], nil
 }
 
+// Get record uris from the repo in the given collection.
+//
+// Set limit = -1 in order to get all records.
 func (c *Client) RepoGetRecordUris(ctx context.Context, handleOrDid string, collection string, limit int) ([]string, error) {
 	records, err := c.RepoGetRecords(ctx, handleOrDid, collection, limit)
 	if err != nil {
@@ -95,10 +100,11 @@ func (c *Client) RepoGetRecordAsType(ctx context.Context, recordUri string, resu
 	if err != nil {
 		return fmt.Errorf("RepoGetRecordAsType error (RepoGetRecord): %v", err)
 	}
-	return DecodeRecordAsLexicon(record.Value, resultPointer)
+	return decodeRecordAsLexicon(record.Value, resultPointer)
 
 }
 
+// Get the FeedPost struct and the post CID given its Uri.
 func (c *Client) RepoGetPostAndCid(ctx context.Context, postUri string) (bsky.FeedPost, string, error) {
 	var post bsky.FeedPost
 	parsedUri, err := util.ParseAtUri(postUri)
@@ -109,12 +115,13 @@ func (c *Client) RepoGetPostAndCid(ctx context.Context, postUri string) (bsky.Fe
 	if err != nil {
 		return post, "", fmt.Errorf("RepoGetPostAndCid error (RepoGetRecord): %v", err)
 	}
-	if err := DecodeRecordAsLexicon(record.Value, &post); err != nil {
+	if err := decodeRecordAsLexicon(record.Value, &post); err != nil {
 		return post, "", fmt.Errorf("RepoGetPostAndCid error (DecodeRecordAsLexicon): %v", err)
 	}
 	return post, *record.Cid, nil
 }
 
+// Delete the bots post with the given uri.
 func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 	parsedUri, err := util.ParseAtUri(postUri)
 	if err != nil {
@@ -131,6 +138,7 @@ func (c *Client) RepoDeletePost(ctx context.Context, postUri string) error {
 	return nil
 }
 
+// Delete all posts in the bots repository.
 func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 	postUris, err := c.RepoGetRecordUris(ctx, c.Handle, "app.bsky.feed.post", -1)
 	if err != nil {
@@ -147,6 +155,8 @@ func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 	return nil
 }
 
+// Upload a single image to the repo.
+//
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
@@ -171,6 +181,8 @@ func (c *Client) RepoUploadImage(ctx context.Context, image ImageSourceParsed) (
 	return &blob, nil
 }
 
+// Upload the provided images to the repo.
+//
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
@@ -198,6 +210,8 @@ func (c *Client) RepoUploadImages(ctx context.Context, images []ImageSourceParse
 	return blobs, nil
 }
 
+// Create new post FeedPost record in the given repo.
+//
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0

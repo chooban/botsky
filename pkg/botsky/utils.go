@@ -23,10 +23,15 @@ import (
 
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
+// Sleep for a number of seconds.
 func Sleep(seconds int) {
 	time.Sleep(time.Duration(seconds) * time.Second)
 }
 
+// Get the credentials from environment variables.
+//
+// Handle: BOTSKY_HANDLE
+// Appkey/password: BOTSKY_APPKEY
 func GetEnvCredentials() (string, string, error) {
 	handle := os.Getenv("BOTSKY_HANDLE")
 	appkey := os.Getenv("BOTSKY_APPKEY")
@@ -36,6 +41,7 @@ func GetEnvCredentials() (string, string, error) {
 	return handle, appkey, nil
 }
 
+// Enter the credentials via CLI prompt.
 func GetCLICredentials() (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -60,6 +66,8 @@ type CBORUnmarshaler interface {
 }
 
 /*
+Decode the given record as a specific lexicon/type.
+
 To call this function, provide it with a non-nil pointer to a variable of the intended result type.
 The record will then be decoded "into" the provided variable.
 E.g.
@@ -73,7 +81,7 @@ var post bsky.FeedPost
 
 ```
 */
-func DecodeRecordAsLexicon(recordDecoder *lexutil.LexiconTypeDecoder, resultPointer CBORUnmarshaler) error {
+func decodeRecordAsLexicon(recordDecoder *lexutil.LexiconTypeDecoder, resultPointer CBORUnmarshaler) error {
 	var buf bytes.Buffer
 
 	if err := recordDecoder.Val.MarshalCBOR(&buf); err != nil {
@@ -83,6 +91,8 @@ func DecodeRecordAsLexicon(recordDecoder *lexutil.LexiconTypeDecoder, resultPoin
 	return resultPointer.UnmarshalCBOR(&buf)
 }
 
+// Load the image from its location (web url or local file) into a byte buffer.
+//
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
@@ -155,6 +165,7 @@ func findRegexMatches(text, pattern string) []struct {
 	return results
 }
 
+// Try to fetch the open graph or twitter tags for displaying embed information of the webpage (card image, description).
 func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
 	// Initialize the result map
 	tags := make(map[string]string)
@@ -216,6 +227,7 @@ func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
 	return tags, nil
 }
 
+// Strip hashtag of the # sign, punctuation, and whitespace.
 func stripHashtag(hashtag string) string {
 	s := strings.TrimSpace(hashtag)
 	s = strings.TrimPrefix(s, "#")
@@ -223,6 +235,7 @@ func stripHashtag(hashtag string) string {
 	return s
 }
 
+// Block until the user sends an interrupt (Ctrl+C). Useful when running a listener and no other foreground process.
 func WaitUntilCancel() {
 	// Create channel for shutdown signals
 	sigChan := make(chan os.Signal, 1)

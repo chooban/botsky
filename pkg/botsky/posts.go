@@ -26,8 +26,10 @@ const (
 	Facet_Tag
 )
 
+// should match domain names, which are used for handles
 const domainRegex = `[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,10}`
 
+// Helper structs
 
 type InlineLink struct {
 	Text string // a substring of the post text which will be clickable as a link
@@ -69,6 +71,7 @@ type ImageSourceParsed struct {
 	Uri url.URL
 }
 
+// Create a repost of the given post.
 func (c *Client) Repost(ctx context.Context, postUri string) (string, string, error) {
 
 	_, cid, err := c.RepoGetPostAndCid(ctx, postUri)
@@ -99,6 +102,7 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 	return response.Cid, response.Uri, nil
 }
 
+// The PostBuilder is used to prepare all post features in one place, before sending it through the client.
 type PostBuilder struct {
 	Text             string
 	AdditionalTags   []string
@@ -110,50 +114,60 @@ type PostBuilder struct {
 	EmbedPostQuote   string
 }
 
+// Create a new post with text.
 func NewPostBuilder(text string) *PostBuilder {
 	pb := &PostBuilder{
 		Text:             text,
 	}
-
 	return pb
 }
 
+// Add tags (like hashtags, but not shown in text) to the post.
 func (pb *PostBuilder) AddTags(tags []string) *PostBuilder {
 	pb.AdditionalTags = append(pb.AdditionalTags, tags...)
 	return pb
 }
 
+// Specify sections of the text that should link to a webpage and be clickable as links.
 func (pb *PostBuilder) AddInlineLinks(links []InlineLink) *PostBuilder {
     pb.InlineLinks = append(pb.InlineLinks, links...)
 	return pb
 }
 
+// Add a new post language. Doesn't overwrite the old ones (a post can have multiple languages).
 func (pb *PostBuilder) AddLanguage(language string) *PostBuilder {
 	pb.Languages = append(pb.Languages, language)
 	return pb
 }
 
+// Set the post being built (PostBuilder) as a reply to the provided post (postUri).
 func (pb *PostBuilder) ReplyTo(postUri string) *PostBuilder {
 	pb.ReplyUri = postUri
 	return pb
 }
 
+// Add a link embed to the post. Will try to get a description and card graphic directly from the webpage.
 func (pb *PostBuilder) AddEmbedLink(link string) *PostBuilder {
 	pb.EmbedLink = link
 	return pb
 }
 
+// Add images to the post.
 func (pb *PostBuilder) AddImages(images []ImageSource) *PostBuilder {
 	pb.EmbedImages = append(pb.EmbedImages, images...)
 	return pb
 }
 
+// Embed a quoted post.
 func (pb *PostBuilder) AddQuotedPost(postUri string) *PostBuilder {
 	pb.EmbedPostQuote = postUri
 	return pb
 }
 
 
+// Build and post to Bluesky.
+//
+// Returns the CID and Uri of the created record.
 func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, error) {
 	nEmbeds := 0
 	if pb.EmbedImages != nil {
@@ -307,7 +321,7 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 
 }
 
-// Build the request
+// Build the post
 func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, mentionMatches []struct{Value string; Start int; End int; Did string}) (bsky.FeedPost, error) {
 	post := bsky.FeedPost{Langs: pb.Languages}
 
@@ -495,6 +509,7 @@ func buildPost(pb *PostBuilder, embed Embed, replyReference ReplyReference, ment
 	return post, nil
 }
 
+// String representation of Facets
 func (f Facet_Type) String() string {
 	switch f {
 	case Facet_Link:

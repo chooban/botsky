@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Extracts the remaining time until expiry from a jwt string
 func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 	// TODO: improve this?
 	token, _, _ := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{}) 
@@ -28,6 +29,9 @@ func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 	return time.Until(expTimeUnix), nil
 }
 
+// Update the clients auth info with the given JWTs, handle, and did.
+//
+// This will also start a new goroutine to refresh the session before this one expires
 func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) error {
 	c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{
 		AccessJwt:  accessJwt,
@@ -58,6 +62,7 @@ func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt st
     return nil
 }
 
+// Refreshes the client's session once the timer expires
 func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 	// wait until timer fires
 	<-timer.C
@@ -90,8 +95,9 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
     }
 }
 
-// Authenticates the client with the given credentials
-// Re-authenticating: First try to send RefreshJwt, if that fails create fully new session
+// Authenticates the client with the given credentials and updates its auth info.
+//
+// A background goroutine to automatically refresh the session is started through client.UpdateAuth
 func (c *Client) Authenticate(ctx context.Context) error {
     // reset auth
     c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{})
