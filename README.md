@@ -4,7 +4,7 @@ A Bluesky API client in Go. Use Botsky to easily build advanced API integrations
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/davhofer/botsky) ![GitHub Repo stars](https://img.shields.io/github/stars/davhofer/botsky)
 
-## Features
+## Main features
 
 - easily create posts with images, links, mentions, tags etc.
   - automatic detection/parsing of facets (links, mentions, hashtags)
@@ -15,19 +15,21 @@ A Bluesky API client in Go. Use Botsky to easily build advanced API integrations
 - auth management & auto-refresh
 - interacting with user profiles and social graph **WIP**
 
-**Note:** This library is under active development, most features are still work in progress.
+**Note:** This library is under active development.
 
-Complete code and API docs are coming soon.
+## Documentation
+
+**The library API documentation can be found here: [docs.md](https://github.com/davhofer/botsky/tree/main/docs.md).**
 
 ### Code examples
 
-For more complete examples and details, also check out the [examples here](https://github.com/davhofer/botsky/tree/main/cmd/examples).
-
-For a full demo bot, check out `cmd/examples/helpful-advice-bot`, running live on Bluesky at [@botsky-bot.bsky.social](https://bsky.app/profile/botsky-bot.bsky.social).
-
 Simplified code snippets (without e.g. error handling) for various use cases below.
 
-Initialization and auth:
+For more complete examples and details, also check out the [examples directory](https://github.com/davhofer/botsky/tree/main/examples).
+
+For a full demo bot, check out `cmd/helpful-advice-bot`, running live on Bluesky at [@botsky-bot.bsky.social](https://bsky.app/profile/botsky-bot.bsky.social).
+
+#### Initialization and auth:
 
 ```go
 // Get creds from command line
@@ -39,7 +41,7 @@ client, err := botsky.NewClient(ctx, handle, appkey)
 err = client.Authenticate(ctx)
 ```
 
-Creating posts:
+#### Creating posts:
 
 ```go
 // create a post with an image. uri can be a web url or local file
@@ -68,7 +70,7 @@ pb := botsky.NewPostBuilder(text).
 cid, uri, err := client.Post(ctx, pb)
 ```
 
-Create NotificationListener and reply to mentions:
+#### Create NotificationListener and reply to mentions:
 
 ```go
 func ExampleMentionHandler(ctx context.Context, client *Client, notifications []*bsky.NotificationListNotifications_Notification) {
@@ -92,7 +94,7 @@ func main () {
 }
 ```
 
-Create ChatListener and reply to messages:
+#### Create ChatListener and reply to messages:
 
 ```go
 func ExampleChatMessageHandler(ctx context.Context, client *botsky.Client, chatElems []*chat.ConvoGetLog_Output_Logs_Elem) {
@@ -151,7 +153,6 @@ The main license for all original work is the MIT license. However, certain part
 
 ### TODO/Ideas
 
-- code and api documentation, detailed features overview
 - emojis
 - get user profile information, social graph interactions, following & followers, etc.
 - demo bot with command/control interface through chat. could set up bot command listeners with authorized users, post creation through chat, etc.
