@@ -2,6 +2,7 @@ package botsky
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,9 +15,14 @@ import (
 func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 	// TODO: improve this?
 	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
-	if err != nil {
-		return 0, fmt.Errorf("error parsing token: %w", err)
+	if err != nil && !errors.Is(err, jwt.ErrTokenUnverifiable) {
+		exp := &jwt.NumericDate{}
+		expTimeUnix := time.Unix(exp.Unix(), 0)
+		return time.Until(expTimeUnix), nil
 	}
+	//{
+	//	return 0, fmt.Errorf("error parsing token: %w", err)
+	//}
 
 	// Extract claims
 	claims, ok := token.Claims.(jwt.MapClaims)
