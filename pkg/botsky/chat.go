@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davhofer/indigo/api/chat"
+	"github.com/bluesky-social/indigo/api/chat"
 )
 
 // Update for the given account whether it can initiate DMs or not.
@@ -90,7 +90,7 @@ func (c *Client) ChatListConvos(ctx context.Context) ([]*chat.ConvoDefs_ConvoVie
 	// iterate until we got all convos
 	for {
 		// query repo for collection with updated cursor
-		output, err := chat.ConvoListConvos(ctx, c.chatClient, cursor, 100)
+		output, err := chat.ConvoListConvos(ctx, c.chatClient, cursor, 100, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("ChatListConvos error: %v", err)
 		}

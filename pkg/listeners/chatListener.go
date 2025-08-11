@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/davhofer/botsky/pkg/botsky"
 
-	"github.com/davhofer/indigo/api/chat"
+	"github.com/bluesky-social/indigo/api/chat"
 )
 
 // Instantiation of a Listener for handling chat logs/events.

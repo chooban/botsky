@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/davhofer/indigo/api/atproto"
-	"github.com/davhofer/indigo/xrpc"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Extracts the remaining time until expiry from a jwt string
 func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 	// TODO: improve this?
-	token, _, _ := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return 0, fmt.Errorf("error parsing token: %w", err)
+	}
 
 	// Extract claims
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -33,20 +36,20 @@ func getJwtTimeRemaining(tokenString string) (time.Duration, error) {
 //
 // This will also start a new goroutine to refresh the session before this one expires
 func (c *Client) UpdateAuth(ctx context.Context, accessJwt string, refreshJwt string, handle string, did string) error {
-	c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{
+	c.xrpcClient.Auth = &xrpc.AuthInfo{
 		AccessJwt:  accessJwt,
 		RefreshJwt: refreshJwt,
 		Handle:     handle,
 		Did:        did,
-	})
+	}
 
 	if c.chatClient != nil {
-		c.chatClient.SetAuthAsync(xrpc.AuthInfo{
+		c.chatClient.Auth = &xrpc.AuthInfo{
 			AccessJwt:  accessJwt,
 			RefreshJwt: refreshJwt,
 			Handle:     handle,
 			Did:        did,
-		})
+		}
 	}
 
 	// Start timer for expiration of AccessJWT and session refresh
@@ -71,11 +74,11 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 	defer c.refreshProcessLock.Unlock()
 
 	// check that RefreshJWT is still (for some time) valid
-	auth := c.xrpcClient.GetAuthAsync()
+	auth := c.xrpcClient.Auth
 	if tRemaining, _ := getJwtTimeRemaining(auth.RefreshJwt); tRemaining > 30*time.Second {
 		// set access jwt to refresh jwt
 		auth.AccessJwt = auth.RefreshJwt
-		c.xrpcClient.SetAuthAsync(auth)
+		c.xrpcClient.Auth = auth
 		// refresh the session
 		session, err := atproto.ServerRefreshSession(ctx, c.xrpcClient)
 
@@ -100,7 +103,7 @@ func (c *Client) RefreshSession(ctx context.Context, timer *time.Timer) {
 // A background goroutine to automatically refresh the session is started through client.UpdateAuth
 func (c *Client) Authenticate(ctx context.Context) error {
 	// reset auth
-	c.xrpcClient.SetAuthAsync(xrpc.AuthInfo{})
+	c.xrpcClient.Auth = &xrpc.AuthInfo{}
 	// create new session and authenticate with handle and appkey
 	sessionCredentials := &atproto.ServerCreateSession_Input{
 		Identifier: c.Handle,

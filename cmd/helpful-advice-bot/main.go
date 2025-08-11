@@ -11,8 +11,8 @@ import (
 	"math/rand/v2"
 	"net/http"
 
-	"github.com/davhofer/indigo/api/bsky"
-	"github.com/davhofer/indigo/api/chat"
+	"github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/chat"
 )
 
 type Slip struct {

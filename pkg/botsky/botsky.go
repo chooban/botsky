@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/davhofer/indigo/api/atproto"
-	"github.com/davhofer/indigo/api/bsky"
-	lexutil "github.com/davhofer/indigo/lex/util"
-	"github.com/davhofer/indigo/xrpc"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/api/bsky"
+	lexutil "github.com/bluesky-social/indigo/lex/util"
+	"github.com/bluesky-social/indigo/xrpc"
 )
 
 const ApiEntryway = "https://bsky.social"
@@ -33,11 +33,14 @@ type Client struct {
 }
 
 // Sets up a new client (not yet authenticated)
-func NewClient(ctx context.Context, handle string, appkey string) (*Client, error) {
+func NewClient(ctx context.Context, handle string, appkey string, server string) (*Client, error) {
+	if server == "" {
+		server = ApiEntryway
+	}
 	client := &Client{
 		xrpcClient: &xrpc.Client{
 			Client: new(http.Client),
-			Host:   string(ApiEntryway),
+			Host:   server,
 		},
 		Handle: handle,
 		appkey: appkey,

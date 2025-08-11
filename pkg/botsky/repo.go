@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/davhofer/indigo/api/atproto"
-	"github.com/davhofer/indigo/api/bsky"
-	lexutil "github.com/davhofer/indigo/lex/util"
-	util "github.com/davhofer/indigo/util"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/api/bsky"
+	lexutil "github.com/bluesky-social/indigo/lex/util"
+	util "github.com/bluesky-social/indigo/util"
 )
 
 // TODO: download image function from embed/repo, using SyncGetBlob
@@ -38,7 +38,7 @@ func (c *Client) RepoGetRecords(ctx context.Context, handleOrDid string, collect
 	// iterate until we got all records
 	for {
 		// query repo for collection with updated cursor
-		output, err := atproto.RepoListRecords(ctx, c.xrpcClient, collection, cursor, 100, handleOrDid, false, "", "")
+		output, err := atproto.RepoListRecords(ctx, c.xrpcClient, collection, cursor, 100, handleOrDid, false)
 		if err != nil {
 			return nil, fmt.Errorf("RepoGetRecords error (RepoListRecords): %v", err)
 		}
@@ -164,7 +164,7 @@ func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (
 
 	getImage, err := getImageAsBuffer(image.Uri.String())
 	if err != nil {
-		log.Printf("Couldn't retrive the image: %v , %v", image, err)
+		log.Printf("Couldn't retrieve the image: %v , %v", image, err)
 	}
 
 	resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
@@ -193,7 +193,7 @@ func (c *Client) RepoUploadImages(ctx context.Context, images []imageSourceParse
 	for _, img := range images {
 		getImage, err := getImageAsBuffer(img.Uri.String())
 		if err != nil {
-			log.Printf("Couldn't retrive the image: %v , %v", img, err)
+			log.Printf("Couldn't retrieve the image: %v , %v", img, err)
 		}
 
 		resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))

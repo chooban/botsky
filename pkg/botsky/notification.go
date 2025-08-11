@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/davhofer/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/bsky"
 )
 
 // TODO: chekc that all functions with cursors that get lists/collections have the abilitiy to iterate and get more

@@ -6,7 +6,7 @@ import (
 	"github.com/davhofer/botsky/pkg/botsky"
 	"github.com/davhofer/botsky/pkg/listeners"
 
-	"github.com/davhofer/indigo/api/chat"
+	"github.com/bluesky-social/indigo/api/chat"
 )
 
 // example handler that replies to dms by repeating their content

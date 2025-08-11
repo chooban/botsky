@@ -16,7 +16,7 @@ import (
 	"time"
 	"unicode"
 
-	lexutil "github.com/davhofer/indigo/lex/util"
+	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"golang.org/x/net/html"
 	"golang.org/x/term"
 )

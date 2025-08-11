@@ -11,9 +11,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/davhofer/indigo/api/atproto"
-	"github.com/davhofer/indigo/api/bsky"
-	lexutil "github.com/davhofer/indigo/lex/util"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/api/bsky"
+	lexutil "github.com/bluesky-social/indigo/lex/util"
 )
 
 // TODO: embed videos

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/davhofer/botsky/pkg/botsky"
 
-	"github.com/davhofer/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/bsky"
 )
 
 // Instantiation of the (polling) listenerBase for handling notifications.

@@ -6,7 +6,7 @@ import (
 	"github.com/davhofer/botsky/pkg/botsky"
 	"github.com/davhofer/botsky/pkg/listeners"
 
-	"github.com/davhofer/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/bsky"
 )
 
 // example handler that replies to mentions
