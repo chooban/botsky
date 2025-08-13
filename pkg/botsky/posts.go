@@ -217,25 +217,26 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			return "", "", fmt.Errorf("Error when parsing link: %v", err)
 		}
 
-		siteTags, err := fetchOpenGraphTwitterTags(pb.EmbedLink)
+		//siteTags, err := fetchOpenGraphTwitterTags(pb.EmbedLink)
+		siteTags, err := getMetadata(parsedLink)
 		if err != nil {
 			return "", "", fmt.Errorf("Error when fetching og/twitter tags from link: %v", err)
 		}
 
-		title := siteTags["title"]
-		description := siteTags["description"]
-		imageUrl, hasImage := siteTags["image"]
-		alt := siteTags["image:alt"]
+		title := siteTags.Title
+		description := siteTags.Description
+		imageUrl := siteTags.Image
+		//alt := siteTags["image:alt"]
 
 		var blob lexutil.LexBlob
-		if hasImage {
+		if len(imageUrl) > 0 {
 			parsedImageUrl, err := url.Parse(imageUrl)
 			if err != nil {
 				return "", "", fmt.Errorf("Error when parsing image url: %v", err)
 			}
 			previewImg := imageSourceParsed{
 				Uri: *parsedImageUrl,
-				Alt: alt,
+				Alt: title,
 			}
 			b, err := c.RepoUploadImage(ctx, previewImg)
 			if err != nil {
