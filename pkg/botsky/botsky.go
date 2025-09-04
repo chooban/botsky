@@ -139,6 +139,8 @@ type RichPost struct {
 	QuoteCount  int64
 	ReplyCount  int64
 	RepostCount int64
+
+	Images []*bsky.EmbedImages_ViewImage
 }
 
 // Load Bluesky AppView postViews for the given repo/user.
@@ -215,8 +217,14 @@ func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) 
 		return RichPost{}, fmt.Errorf("GetPost error (DecodeRecordAsLexicon): %v", err)
 	}
 
+	var images []*bsky.EmbedImages_ViewImage
+	if postView.Embed != nil && postView.Embed.EmbedImages_View != nil {
+		images = postView.Embed.EmbedImages_View.Images
+	}
+
 	post := RichPost{
 		FeedPost:    feedPost,
+		Images:      images,
 		AuthorDid:   postView.Author.Did,
 		Cid:         postView.Cid,
 		Uri:         postView.Uri,
