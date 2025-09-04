@@ -33,7 +33,10 @@ type Client struct {
 }
 
 // Sets up a new client (not yet authenticated)
-func NewClient(ctx context.Context, handle string, appkey string, server string) (*Client, error) {
+func NewClient(ctx context.Context, handle string, appkey string) (*Client, error) {
+	return NewClientWithPds(ctx, handle, appkey, ApiEntryway)
+}
+func NewClientWithPds(ctx context.Context, handle string, appkey string, server string) (*Client, error) {
 	if server == "" {
 		server = ApiEntryway
 	}
