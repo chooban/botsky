@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/api/bsky"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
+	"github.com/bluesky-social/indigo/util"
 	"github.com/bluesky-social/indigo/xrpc"
 )
 
@@ -236,4 +238,37 @@ func (c *Client) GetPost(ctx context.Context, postUri string) (RichPost, error) 
 	}
 
 	return post, nil
+}
+
+type Profile struct {
+	bsky.ActorDefs_ProfileViewDetailed
+}
+
+func (c *Client) GetProfile(ctx context.Context, handleOrDid string) (Profile, error) {
+	result, err := bsky.ActorGetProfile(ctx, c.xrpcClient, handleOrDid)
+	if err != nil {
+		return Profile{}, fmt.Errorf("GetProfile error (ActorGetProfile): %v", err)
+	}
+	return Profile{*result}, nil
+}
+
+func (c *Client) LikePost(ctx context.Context, handleOrDid string) error {
+	resp, err := c.GetPost(ctx, handleOrDid)
+	if err != nil {
+		return fmt.Errorf("GetPost error (GetPost): %v", err)
+	}
+	_, err = atproto.RepoCreateRecord(ctx, c.xrpcClient, &atproto.RepoCreateRecord_Input{
+		Collection: "app.bsky.feed.like",
+		Repo:       c.xrpcClient.Auth.Did,
+		Record: &lexutil.LexiconTypeDecoder{
+			Val: &bsky.FeedLike{
+				CreatedAt: time.Now().Format(util.ISO8601),
+				Subject:   &atproto.RepoStrongRef{Uri: resp.Uri, Cid: resp.Cid},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("creating like failed: %w", err)
+	}
+	return nil
 }
