@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/api/bsky"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	util "github.com/bluesky-social/indigo/util"
 )
+
+// uploadedImageData contains the blob reference and optional aspect ratio information for an uploaded image
+type uploadedImageData struct {
+	Blob        *lexutil.LexBlob
+	AspectRatio *ImageDimensions
+}
 
 // TODO: download image function from embed/repo, using SyncGetBlob
 // useful to extract images e.g. from posts
@@ -160,12 +165,14 @@ func (c *Client) RepoDeleteAllPosts(ctx context.Context) error {
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (*lexutil.LexBlob, error) {
-
+func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (*uploadedImageData, error) {
 	getImage, err := getImageAsBuffer(image.Uri.String())
 	if err != nil {
-		log.Printf("Couldn't retrieve the image: %v , %v", image, err)
+		return nil, fmt.Errorf("RepoUploadImage error (getImageAsBuffer): %v", err)
 	}
+
+	// Detect image dimensions for aspect ratio (optional, gracefully fails)
+	aspectRatio := getImageDimensions(getImage)
 
 	resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
 	if err != nil {
@@ -178,7 +185,10 @@ func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (
 		Size:     resp.Blob.Size,
 	}
 
-	return &blob, nil
+	return &uploadedImageData{
+		Blob:        &blob,
+		AspectRatio: aspectRatio,
+	}, nil
 }
 
 // Upload the provided images to the repo.
@@ -186,31 +196,38 @@ func (c *Client) RepoUploadImage(ctx context.Context, image imageSourceParsed) (
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go
 // License: Apache 2.0
-func (c *Client) RepoUploadImages(ctx context.Context, images []imageSourceParsed) ([]lexutil.LexBlob, error) {
-
-	blobs := make([]lexutil.LexBlob, 0, len(images))
+func (c *Client) RepoUploadImages(ctx context.Context, images []imageSourceParsed) ([]uploadedImageData, error) {
+	uploadedImages := make([]uploadedImageData, 0, len(images))
 
 	for _, img := range images {
 		getImage, err := getImageAsBuffer(img.Uri.String())
 		if err != nil {
-			log.Printf("Couldn't retrieve the image: %v , %v", img, err)
+			return nil, fmt.Errorf("RepoUploadImages error (getImageAsBuffer): %v", err)
 		}
+
+		// Detect image dimensions for aspect ratio (optional, gracefully fails)
+		aspectRatio := getImageDimensions(getImage)
 
 		resp, err := atproto.RepoUploadBlob(ctx, c.xrpcClient, bytes.NewReader(getImage))
 		if err != nil {
 			return nil, fmt.Errorf("RepoUploadImages error (RepoUploadBlob): %v", err)
 		}
 
-		blobs = append(blobs, lexutil.LexBlob{
+		blob := lexutil.LexBlob{
 			Ref:      resp.Blob.Ref,
 			MimeType: resp.Blob.MimeType,
 			Size:     resp.Blob.Size,
+		}
+
+		uploadedImages = append(uploadedImages, uploadedImageData{
+			Blob:        &blob,
+			AspectRatio: aspectRatio,
 		})
 	}
-	return blobs, nil
+	return uploadedImages, nil
 }
 
-// Create new post FeedPost record in the given repo.
+// RepoCreatePostRecord creates a new post FeedPost record in the given repo.
 //
 // This function has been modified from its original version.
 // Original source: https://github.com/danrusei/gobot-bsky/blob/main/gobot.go

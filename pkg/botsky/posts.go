@@ -39,8 +39,9 @@ type InlineLink struct {
 
 // Represents an image with alt text and its location (web url or local path)
 type ImageSource struct {
-	Alt string
-	Uri string
+	Alt         string
+	Uri         string
+	AspectRatio *ImageDimensions // nil if not detected
 }
 
 type recordRef struct {
@@ -51,6 +52,7 @@ type recordRef struct {
 type embed struct {
 	Link           embedLink
 	Images         []imageSourceParsed
+	AspectRatios   []*ImageDimensions // parallel array to UploadedImages
 	UploadedImages []lexutil.LexBlob
 	Record         recordRef
 }
@@ -70,8 +72,9 @@ type embedLink struct {
 }
 
 type imageSourceParsed struct {
-	Alt string
-	Uri url.URL
+	Alt         string
+	Uri         url.URL
+	AspectRatio *ImageDimensions // nil if not detected
 }
 
 // Create a repost of the given post.
@@ -198,16 +201,20 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 			if err != nil {
 				return "", "", fmt.Errorf("Unable to parse image source uri: %s", img.Uri)
 			} else {
-				parsedImages = append(parsedImages, imageSourceParsed{Alt: img.Alt, Uri: *parsedUrl})
+				parsedImages = append(parsedImages, imageSourceParsed{Alt: img.Alt, Uri: *parsedUrl, AspectRatio: img.AspectRatio})
 			}
 		}
 		if len(parsedImages) > 0 {
-			blobs, err := c.RepoUploadImages(ctx, parsedImages)
+			uploadedImages, err := c.RepoUploadImages(ctx, parsedImages)
 			if err != nil {
 				return "", "", fmt.Errorf("Error when uploading images: %v", err)
 			}
 			embed.Images = parsedImages
-			embed.UploadedImages = blobs
+			// Extract blobs and aspect ratios from uploadedImages
+			for _, uploaded := range uploadedImages {
+				embed.UploadedImages = append(embed.UploadedImages, *uploaded.Blob)
+				embed.AspectRatios = append(embed.AspectRatios, uploaded.AspectRatio)
+			}
 		}
 	}
 
@@ -238,12 +245,12 @@ func (c *Client) Post(ctx context.Context, pb *PostBuilder) (string, string, err
 				Uri: *parsedImageUrl,
 				Alt: title,
 			}
-			b, err := c.RepoUploadImage(ctx, previewImg)
+			uploadedImg, err := c.RepoUploadImage(ctx, previewImg)
 			if err != nil {
 				return "", "", fmt.Errorf("Error when trying to upload image: %v", err)
 			}
-			if b != nil {
-				blob = *b
+			if uploadedImg != nil {
+				blob = *uploadedImg.Blob
 			}
 		}
 
@@ -479,10 +486,20 @@ func buildPost(pb *PostBuilder, embed embed, replyRef replyReference, mentionMat
 		}
 
 		for i, img := range embed.Images {
-			EmbedImages.Images[i] = &bsky.EmbedImages_Image{
+			embedImage := &bsky.EmbedImages_Image{
 				Alt:   img.Alt,
 				Image: &embed.UploadedImages[i],
 			}
+
+			// Add aspect ratio if available
+			if i < len(embed.AspectRatios) && embed.AspectRatios[i] != nil {
+				embedImage.AspectRatio = &bsky.EmbedDefs_AspectRatio{
+					Height: int64(embed.AspectRatios[i].Height),
+					Width:  int64(embed.AspectRatios[i].Width),
+				}
+			}
+
+			EmbedImages.Images[i] = embedImage
 		}
 
 		FeedPost_Embed.EmbedImages = &EmbedImages

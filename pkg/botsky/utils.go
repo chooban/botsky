@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"log"
 	"net/http"
@@ -16,6 +17,10 @@ import (
 	"time"
 	"unicode"
 
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"golang.org/x/net/html"
 	"golang.org/x/term"
@@ -23,12 +28,12 @@ import (
 
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
-// Convenience function to sleep for a number of seconds.
+// Sleep for a number of seconds.
 func Sleep(seconds int) {
 	time.Sleep(time.Duration(seconds) * time.Second)
 }
 
-// Get the credentials from environment variables.
+// GetEnvCredentials gets the credentials from environment variables.
 //
 // Handle: BOTSKY_HANDLE
 // Appkey/password: BOTSKY_APPKEY
@@ -103,7 +108,11 @@ func getImageAsBuffer(imageLocation string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("getImageAsBuffer error (http.Get): %v", err)
 		}
-		defer response.Body.Close()
+		defer func(Body io.ReadCloser) {
+			if err := Body.Close(); err != nil {
+				// no-op
+			}
+		}(response.Body)
 
 		// Check response status
 		if response.StatusCode != http.StatusOK {
@@ -175,7 +184,11 @@ func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetchOpenGraphTwitterTags error (http.Get): %v", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		if err := Body.Close(); err != nil {
+			//noop
+		}
+	}(resp.Body)
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
@@ -235,7 +248,34 @@ func stripHashtag(hashtag string) string {
 	return s
 }
 
-// Block until the user sends an interrupt (Ctrl+C). Useful when running a listener and no other foreground process.
+// ImageDimensions holds the width and height of an image.
+type ImageDimensions struct {
+	Width  int
+	Height int
+}
+
+// Get the width and height dimensions of an image from its buffer.
+// Supports JPEG, PNG, and GIF formats.
+// Returns nil if the image format is not supported or cannot be decoded.
+func getImageDimensions(imageData []byte) *ImageDimensions {
+	// Create a reader from the image buffer
+	reader := bytes.NewReader(imageData)
+
+	// Decode image config (only reads header, more efficient than full decode)
+	config, _, err := image.DecodeConfig(reader)
+	if err != nil {
+		// Log warning but don't fail - aspect ratio is optional
+		logger.Printf("Warning: could not detect image dimensions: %v\n", err)
+		return nil
+	}
+
+	return &ImageDimensions{
+		Width:  config.Width,
+		Height: config.Height,
+	}
+}
+
+// WaitUntilCancel blocks until the user sends an interrupt (Ctrl+C). Useful when running a listener and no other foreground process.
 func WaitUntilCancel() {
 	// Create channel for shutdown signals
 	sigChan := make(chan os.Signal, 1)
