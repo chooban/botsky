@@ -77,12 +77,13 @@ type imageSourceParsed struct {
 	AspectRatio *ImageDimensions // nil if not detected
 }
 
-// Create a repost of the given post.
+// Repost creates a repost of the given post.
+// Returns the CID, URI, and any error
 func (c *Client) Repost(ctx context.Context, postUri string) (string, string, error) {
 
 	_, cid, err := c.RepoGetPostAndCid(ctx, postUri)
 	if err != nil {
-		return "", "", fmt.Errorf("Error getting post to repost: %v", err)
+		return "", "", fmt.Errorf("error getting post to repost: %v", err)
 	}
 	ref := atproto.RepoStrongRef{
 		Uri: postUri,
@@ -95,12 +96,12 @@ func (c *Client) Repost(ctx context.Context, postUri string) (string, string, er
 		Subject:       &ref,
 	}
 
-	post_input := &atproto.RepoCreateRecord_Input{
+	postInput := &atproto.RepoCreateRecord_Input{
 		Collection: "app.bsky.feed.repost",
 		Repo:       c.xrpcClient.Auth.Did,
 		Record:     &lexutil.LexiconTypeDecoder{Val: &post},
 	}
-	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, post_input)
+	response, err := atproto.RepoCreateRecord(ctx, c.xrpcClient, postInput)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to repost: %v", err)
 	}
