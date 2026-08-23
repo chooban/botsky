@@ -174,6 +174,32 @@ func findRegexMatches(text, pattern string) []struct {
 	return results
 }
 
+// trimURLTrailing removes trailing sentence punctuation from a matched URL,
+// keeping closing brackets when they are balanced (e.g. Wikipedia titles).
+func trimURLTrailing(s string) string {
+	s = strings.TrimRight(s, ".,;:!?\"'")
+
+	for {
+		var opener byte
+		switch last := s[len(s)-1]; last {
+		case ')':
+			opener = '('
+		case ']':
+			opener = '['
+		case '}':
+			opener = '{'
+		default:
+			return s
+		}
+
+		if strings.Count(s, string(opener)) >= strings.Count(s, string(s[len(s)-1])) {
+			return s
+		}
+
+		s = s[:len(s)-1]
+	}
+}
+
 // Try to fetch the open graph or twitter tags for displaying embed information of the webpage (card image, description).
 func fetchOpenGraphTwitterTags(url string) (map[string]string, error) {
 	// Initialize the result map

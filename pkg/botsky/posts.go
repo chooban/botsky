@@ -408,15 +408,20 @@ func buildPost(pb *PostBuilder, embed embed, replyRef replyReference, mentionMat
 	}
 
 	// auto-detect inline links
-	urlRegex := `https?:\/\/` + domainRegex + `(\/(` + domainRegex + `)+)*\/?`
+	urlRegex := `https?:\/\/` + domainRegex + `(?:[\/?#][^\s]*)?`
 	matches := findRegexMatches(pb.Text, urlRegex)
 	for _, match := range matches {
+		uri := trimURLTrailing(match.Value)
+		if uri == "" {
+			continue
+		}
+
 		facet := &bsky.RichtextFacet{}
 		features := []*bsky.RichtextFacet_Features_Elem{}
 		feature := &bsky.RichtextFacet_Features_Elem{
 			RichtextFacet_Link: &bsky.RichtextFacet_Link{
 				LexiconTypeID: facetTypeLink.String(),
-				Uri:           match.Value,
+				Uri:           uri,
 			},
 		}
 		features = append(features, feature)
@@ -424,7 +429,7 @@ func buildPost(pb *PostBuilder, embed embed, replyRef replyReference, mentionMat
 
 		index := &bsky.RichtextFacet_ByteSlice{
 			ByteStart: int64(match.Start),
-			ByteEnd:   int64(match.End),
+			ByteEnd:   int64(match.End - (len(match.Value) - len(uri))),
 		}
 		facet.Index = index
 
